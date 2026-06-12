@@ -1,0 +1,27 @@
+{
+  "name": "Inmaculada Music",
+  "short_name": "Inmaculada Music",
+  "description": "Plataforma de streaming musical",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#1e293b",
+  "theme_color": "#1e293b",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.jpg",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-512.jpg",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "categories": ["music", "entertainment"],
+  "lang": "es",
+  "dir": "ltr"
+}
