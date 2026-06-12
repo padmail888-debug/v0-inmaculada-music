@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "96819397885",
+    "project_id": "inmaculada-music-a391e",
+    "storage_bucket": "inmaculada-music-a391e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:96819397885:android:41e26f3b2bb1055e7b2a94",
+        "android_client_info": {
+          "package_name": "com.inmaculada.music"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKpXAPTmpYulJPe505V8Pzawo9Lm55qTc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

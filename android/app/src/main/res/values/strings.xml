@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Inmaculada Music</string>
+    <string name="title_activity_main">Inmaculada Music</string>
+    <string name="package_name">com.inmaculada.music</string>
+    <string name="custom_url_scheme">com.inmaculada.music</string>
+</resources>
