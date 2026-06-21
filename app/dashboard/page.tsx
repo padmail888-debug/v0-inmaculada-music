@@ -118,7 +118,37 @@ export default function DashboardPage() {
     user?.role === "artist" || user?.role === "artist-pro"
   const showContent = !isLoading && user && !isArtistAccount
 
-  if (!isLoading && isArtistAccount) {
+  // Show loading spinner while auth is initializing
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/30 border-t-white mx-auto mb-4" />
+          <p className="text-slate-300">Verificando sesión...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // User is not logged in, show login prompt
+  if (!user) {
+    return (
+      <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-4">
+        <div className="text-center max-w-md">
+          <h1 className="text-3xl font-bold mb-4">Acceso Requerido</h1>
+          <p className="text-slate-300 mb-8">Por favor, inicia sesión para continuar</p>
+          <button
+            onClick={() => router.push("/login")}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+          >
+            Ir a Iniciar Sesión
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (isArtistAccount) {
     return (
       <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/30 border-t-white" />
