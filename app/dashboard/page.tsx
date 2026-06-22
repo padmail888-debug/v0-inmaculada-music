@@ -1,216 +1,82 @@
  "use client"
 
-import { useAuth } from "@/hooks/use-auth"
-import { useEffect, useLayoutEffect, useState, Suspense } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { AppShell } from "@/components/layout/app-shell"
-import { MusicGrid } from "@/components/music/music-grid"
-import { FeaturedCarousel } from "@/components/featured-content/featured-carousel"
-import { DashboardSuccessBanner } from "./dashboard-success-banner"
-import { getSupabase } from "@/lib/supabase/client"
-
-interface Track {
-  id: string
-  title: string
-  artist: string
-  album: string
-  duration: number
-  audioUrl: string
-  coverUrl: string
-  isPremium: boolean
-}
 
 export default function DashboardPage() {
-  const { user, isLoading, setUserRole, refreshUserFromSupabase } = useAuth()
   const router = useRouter()
-  const [tracks, setTracks] = useState<Track[]>([])
-
-  // On return from checkout: set role from plan (premium | artist-pro). Only Artist Pro redirects to /artist/profile.
-  useLayoutEffect(() => {
-    if (typeof window === "undefined" || !user?.id) return
-    const params = new URLSearchParams(window.location.search)
-    if (params.get("success") !== "true") return
-    const planParam = params.get("plan")
-    const plan = planParam === "artist-pro" ? "artist-pro" : "premium"
-    setUserRole(plan)
-    if (plan === "artist-pro") {
-      router.replace("/artist/profile?success=true")
-    }
-  }, [user?.id, setUserRole, router])
-
-  useEffect(() => {
-    if (!isLoading && !user) {
-      router.replace("/login")
-      return
-    }
-    if (!isLoading && user && (user.role === "artist" || user.role === "artist-pro")) {
-      router.replace("/artist/profile")
-    }
-  }, [isLoading, user, router])
-
-  // Sync role from server. After checkout (success=true), short delay so webhook has time to update Supabase.
-  useEffect(() => {
-    if (!user?.id) return
-    const isReturnFromCheckout =
-      typeof window !== "undefined" && new URLSearchParams(window.location.search).get("success") === "true"
-    const delayMs = isReturnFromCheckout ? 800 : 400
-    const t = setTimeout(() => void refreshUserFromSupabase(), delayMs)
-    return () => clearTimeout(t)
-  }, [user?.id, refreshUserFromSupabase])
+  const [user, setUser] = useState<{ name?: string; email?: string; role?: string } | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     try {
-      const supabase = getSupabase()
-      supabase
-        .from("songs")
-        .select("id, title, duration, cover_image, audio_file_url, artist_id, album_id")
-        .order("created_at", { ascending: false })
-        .limit(50)
-        .then(({ data: songsData, error }) => {
-          if (error || !songsData?.length) {
-            setTracks([])
-            return
-          }
-        const artistIds = [...new Set(songsData.map((s) => s.artist_id))]
-        supabase
-          .from("artists")
-          .select("id, artist_name")
-          .in("id", artistIds)
-          .then(({ data: artistsData }) => {
-            const artistMap: Record<string, string> = {}
-            artistsData?.forEach((a: { id: string; artist_name?: string }) => {
-              artistMap[a.id] = a.artist_name || "Artista"
-            })
-            const albumIds = [...new Set(songsData.map((s) => (s as { album_id?: string }).album_id).filter(Boolean))] as string[]
-            const loadTracks = (albums: Record<string, string>) => {
-              const list: Track[] = songsData.map((s) => {
-                const row = s as { album_id?: string; cover_image?: string; audio_file_url?: string }
-                const albumId = row.album_id
-                return {
-                  id: s.id,
-                  title: s.title,
-                  artist: artistMap[s.artist_id] || "Artista",
-                  album: albumId ? albums[albumId] || "" : "",
-                  duration: s.duration || 0,
-                  audioUrl: row.audio_file_url || "",
-                  coverUrl: row.cover_image || "",
-                  isPremium: false,
-                }
-              })
-              const withAudio = list.filter((t) => t.audioUrl)
-              setTracks(withAudio)
-            }
-            if (albumIds.length > 0) {
-              supabase.from("albums").select("id, title").in("id", albumIds).then(({ data: albumsData }) => {
-                const albumMap: Record<string, string> = {}
-                albumsData?.forEach((a: { id: string; title?: string }) => {
-                  albumMap[a.id] = a.title || ""
-                })
-                loadTracks(albumMap)
-              })
-            } else {
-              loadTracks({})
-            }
-          })
-      })
+      // Get user from localStorage (set by auth context)
+      const storedUser = localStorage.getItem("user")
+      if (storedUser) {
+        setUser(JSON.parse(storedUser))
+      }
     } catch (err) {
-      console.error("[v0] Dashboard error fetching tracks:", err)
-      setTracks([])
+      console.log("No user found")
+    } finally {
+      setIsLoading(false)
     }
   }, [])
 
-  const isArtistAccount =
-    user?.role === "artist" || user?.role === "artist-pro"
-  const showContent = !isLoading && user && !isArtistAccount
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/login")
+    }
+  }, [user, isLoading, router])
 
-  // Show loading spinner while auth is initializing
   if (isLoading) {
     return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
+      <div className="min-h-[100dvh] bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white flex items-center justify-center">
         <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/30 border-t-white mx-auto mb-4" />
-          <p className="text-slate-300">Verificando sesión...</p>
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-white/30 border-t-white mx-auto mb-4" />
+          <p className="text-slate-300">Cargando...</p>
         </div>
       </div>
     )
   }
 
-  // User is not logged in, show login prompt
   if (!user) {
-    return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-4">
-        <div className="text-center max-w-md">
-          <h1 className="text-3xl font-bold mb-4">Acceso Requerido</h1>
-          <p className="text-slate-300 mb-8">Por favor, inicia sesión para continuar</p>
-          <button
-            onClick={() => router.push("/login")}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
-          >
-            Ir a Iniciar Sesión
-          </button>
-        </div>
-      </div>
-    )
+    return null
   }
 
-  if (isArtistAccount) {
-    return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-      </div>
-    )
-  }
+  return (
+    <div className="min-h-[100dvh] bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-6">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-4xl font-bold mb-2">Bienvenido, {user.name || "Usuario"}</h1>
+        <p className="text-slate-300 mb-8 text-lg">
+          Disfruta de tu música sin límites
+        </p>
 
-  try {
-    return (
-      <AppShell>
-        <Suspense fallback={null}>
-          <DashboardSuccessBanner />
-        </Suspense>
-
-        {showContent ? (
-          <>
-            <div className="mb-6 sm:mb-8">
-              <h1 className="text-2xl sm:text-3xl font-bold mb-2">Bienvenido, {user.name}</h1>
-              <p className="text-slate-300 text-sm sm:text-base">
-                {user.role === "premium" || user.role === "artist-pro"
-                  ? "Disfruta de tu música sin límites"
-                  : "Descubre nueva música"}
-              </p>
-            </div>
-
-            <div className="mb-6 sm:mb-8">
-              <FeaturedCarousel />
-            </div>
-
-            <MusicGrid
-              tracks={tracks}
-              userRole={user.role === "superadmin" ? "premium" : (user.role as "free" | "premium" | "artist" | "artist-pro")}
-            />
-          </>
-        ) : (
-          <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
-            <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            <p className="text-slate-300 animate-pulse">Cargando...</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white/10 backdrop-blur-md rounded-lg p-6 border border-white/20">
+            <h3 className="text-xl font-semibold mb-2">Tu Perfil</h3>
+            <p className="text-slate-300">{user.email}</p>
+            <p className="text-slate-300 capitalize">Plan: {user.role}</p>
           </div>
-        )}
-      </AppShell>
-    )
-  } catch (err) {
-    console.error("[v0] Dashboard render error:", err)
-    return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-slate-900 text-white">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Error al cargar</h1>
-          <p className="text-slate-400 mb-6">{err instanceof Error ? err.message : "Error desconocido"}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-6 rounded-lg"
-          >
-            Reintentar
-          </button>
+
+          <div className="bg-white/10 backdrop-blur-md rounded-lg p-6 border border-white/20">
+            <h3 className="text-xl font-semibold mb-2">Estadísticas</h3>
+            <p className="text-2xl font-bold text-purple-400">0</p>
+            <p className="text-slate-300">Canciones reproducidas</p>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-md rounded-lg p-6 border border-white/20">
+            <h3 className="text-xl font-semibold mb-2">Recomendación</h3>
+            <p className="text-slate-300">Descubre nueva música cada día</p>
+          </div>
         </div>
+
+        <button
+          onClick={() => router.push("/")}
+          className="mt-8 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+        >
+          Volver al Inicio
+        </button>
       </div>
-    )
-  }
+    </div>
+  )
 }
