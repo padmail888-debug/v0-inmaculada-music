@@ -3,10 +3,8 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 
 export default function DashboardPage() {
-  const router = useRouter()
   const [user, setUser] = useState<{ name?: string; email?: string; role?: string } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -16,19 +14,19 @@ export default function DashboardPage() {
       const storedUser = localStorage.getItem("user")
       if (storedUser) {
         setUser(JSON.parse(storedUser))
+      } else {
+        // No user found, redirect to login
+        window.location.href = "/login"
       }
     } catch (err) {
       console.log("No user found")
+      window.location.href = "/login"
     } finally {
       setIsLoading(false)
     }
   }, [])
 
-  useEffect(() => {
-    if (!isLoading && !user) {
-      router.push("/login")
-    }
-  }, [user, isLoading, router])
+
 
   if (isLoading) {
     return (
@@ -73,7 +71,7 @@ export default function DashboardPage() {
         </div>
 
         <button
-          onClick={() => router.push("/")}
+          onClick={() => window.location.href = "/"}
           className="mt-8 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
         >
           Volver al Inicio
