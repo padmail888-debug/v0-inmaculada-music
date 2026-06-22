@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import PurchasePageClient from "./PurchasePageClient"
 
 export default function PurchasePage({ params }: { params: { songId: string } }) {

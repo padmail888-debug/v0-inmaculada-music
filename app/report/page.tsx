@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import Link from "next/link"
 import { PublicSiteHeader } from "@/components/layout/public-site-header"
 import { Button } from "@/components/ui/button"
