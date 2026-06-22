@@ -1,13 +1,13 @@
  "use client"
 
 import { useAuth } from "@/hooks/use-auth"
+import { useEffect, useLayoutEffect, useState, Suspense } from "react"
+import { useRouter } from "next/navigation"
 import { AppShell } from "@/components/layout/app-shell"
 import { MusicGrid } from "@/components/music/music-grid"
 import { FeaturedCarousel } from "@/components/featured-content/featured-carousel"
-import { useEffect, useLayoutEffect, useState, Suspense } from "react"
-import { useRouter } from "next/navigation"
-import { getSupabase } from "@/lib/supabase/client"
 import { DashboardSuccessBanner } from "./dashboard-success-banner"
+import { getSupabase } from "@/lib/supabase/client"
 
 interface Track {
   id: string
@@ -59,17 +59,18 @@ export default function DashboardPage() {
   }, [user?.id, refreshUserFromSupabase])
 
   useEffect(() => {
-    const supabase = getSupabase()
-    supabase
-      .from("songs")
-      .select("id, title, duration, cover_image, audio_file_url, artist_id, album_id")
-      .order("created_at", { ascending: false })
-      .limit(50)
-      .then(({ data: songsData, error }) => {
-        if (error || !songsData?.length) {
-          setTracks([])
-          return
-        }
+    try {
+      const supabase = getSupabase()
+      supabase
+        .from("songs")
+        .select("id, title, duration, cover_image, audio_file_url, artist_id, album_id")
+        .order("created_at", { ascending: false })
+        .limit(50)
+        .then(({ data: songsData, error }) => {
+          if (error || !songsData?.length) {
+            setTracks([])
+            return
+          }
         const artistIds = [...new Set(songsData.map((s) => s.artist_id))]
         supabase
           .from("artists")
@@ -112,6 +113,10 @@ export default function DashboardPage() {
             }
           })
       })
+    } catch (err) {
+      console.error("[v0] Dashboard error fetching tracks:", err)
+      setTracks([])
+    }
   }, [])
 
   const isArtistAccount =
@@ -156,38 +161,56 @@ export default function DashboardPage() {
     )
   }
 
-  return (
-    <AppShell>
-      <Suspense fallback={null}>
-        <DashboardSuccessBanner />
-      </Suspense>
+  try {
+    return (
+      <AppShell>
+        <Suspense fallback={null}>
+          <DashboardSuccessBanner />
+        </Suspense>
 
-      {showContent ? (
-        <>
-          <div className="mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-2">Bienvenido, {user.name}</h1>
-            <p className="text-slate-300 text-sm sm:text-base">
-              {user.role === "premium" || user.role === "artist-pro"
-                ? "Disfruta de tu música sin límites"
-                : "Descubre nueva música"}
-            </p>
+        {showContent ? (
+          <>
+            <div className="mb-6 sm:mb-8">
+              <h1 className="text-2xl sm:text-3xl font-bold mb-2">Bienvenido, {user.name}</h1>
+              <p className="text-slate-300 text-sm sm:text-base">
+                {user.role === "premium" || user.role === "artist-pro"
+                  ? "Disfruta de tu música sin límites"
+                  : "Descubre nueva música"}
+              </p>
+            </div>
+
+            <div className="mb-6 sm:mb-8">
+              <FeaturedCarousel />
+            </div>
+
+            <MusicGrid
+              tracks={tracks}
+              userRole={user.role === "superadmin" ? "premium" : (user.role as "free" | "premium" | "artist" | "artist-pro")}
+            />
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
+            <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            <p className="text-slate-300 animate-pulse">Cargando...</p>
           </div>
-
-          <div className="mb-6 sm:mb-8">
-            <FeaturedCarousel />
-          </div>
-
-          <MusicGrid
-            tracks={tracks}
-            userRole={user.role === "superadmin" ? "premium" : (user.role as "free" | "premium" | "artist" | "artist-pro")}
-          />
-        </>
-      ) : (
-        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
-          <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          <p className="text-slate-300 animate-pulse">Cargando...</p>
+        )}
+      </AppShell>
+    )
+  } catch (err) {
+    console.error("[v0] Dashboard render error:", err)
+    return (
+      <div className="flex min-h-[100dvh] items-center justify-center bg-slate-900 text-white">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Error al cargar</h1>
+          <p className="text-slate-400 mb-6">{err instanceof Error ? err.message : "Error desconocido"}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-6 rounded-lg"
+          >
+            Reintentar
+          </button>
         </div>
-      )}
-    </AppShell>
-  )
+      </div>
+    )
+  }
 }

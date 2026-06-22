@@ -175,12 +175,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false
     async function init() {
       try {
+        console.log("[v0] Auth initializing...")
         const storedUser =
           typeof window !== "undefined" ? localStorage.getItem("user") : null
         if (storedUser && !cancelled) {
           try {
             const parsed = JSON.parse(storedUser) as User
             if (parsed?.id && typeof parsed.role === "string") {
+              console.log("[v0] Found stored user:", parsed.email, "role:", parsed.role)
               if (
                 typeof window !== "undefined" &&
                 new URLSearchParams(window.location.search).get("success") === "true"
@@ -207,14 +209,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         // Sync role from server when app loads (e.g. after re-login or refresh) so Artist Pro / Premium are correct
         if (!cancelled) {
+          console.log("[v0] Checking Supabase session...")
           const supabase = getSupabase()
           const { data } = await supabase.auth.getSession()
+          console.log("[v0] Session check result:", { hasSession: !!data?.session, hasToken: !!data?.session?.access_token })
           if (data?.session?.access_token) {
+            console.log("[v0] Refreshing user from Supabase...")
             await refreshUserFromSupabase()
+          } else {
+            console.log("[v0] No active session found")
           }
         }
+      } catch (error) {
+        console.error("[v0] Auth init error:", error)
       } finally {
-        if (!cancelled) setIsLoading(false)
+        if (!cancelled) {
+          console.log("[v0] Auth loading complete")
+          setIsLoading(false)
+        }
       }
     }
     init()
@@ -227,7 +239,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const t = setTimeout(() => {
       setIsLoading((prev) => (prev ? false : prev))
-    }, 1500)
+    }, 5000)
     return () => clearTimeout(t)
   }, [])
 
