@@ -1,5 +1,5 @@
-import type React from "react"
-import type { Metadata, Viewport, ReactNode } from "next"
+import { ReactNode } from "react"
+import type { Metadata, Viewport } from "next"
 import dynamic from "next/dynamic"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
