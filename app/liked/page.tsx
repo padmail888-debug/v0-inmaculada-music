@@ -1,5 +1,8 @@
  "use client"
 
+export const revalidate = 0
+
+
 import type React from "react"
 
 import { useEffect, useState, useMemo } from "react"

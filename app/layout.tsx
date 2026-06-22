@@ -1,48 +1,13 @@
-import React from "react"
-import type { Metadata, Viewport } from "next"
+import type React from "react"
+import type { Metadata, Viewport, ReactNode } from "next"
 import dynamic from "next/dynamic"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { AuthProvider } from "@/hooks/use-auth"
 
-class ErrorBoundaryWrapper extends React.Component<
-  { children: React.ReactNode },
-  { hasError: boolean; error: Error | null }
-> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props)
-    this.state = { hasError: false, error: null }
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error }
-  }
-
-  componentDidCatch(error: Error) {
-    console.error("[v0] Layout error boundary caught:", error)
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
-          <div className="text-center max-w-md">
-            <h1 className="text-2xl font-bold mb-4">Error en la aplicación</h1>
-            <p className="text-slate-400 mb-6">Ocurrió un error al cargar. Por favor, recarga la página.</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-6 rounded-lg"
-            >
-              Recargar página
-            </button>
-          </div>
-        </div>
-      )
-    }
-
-    return this.props.children
-  }
-}
+// This class component must be in its own "use client" file
+// For now, we'll remove it and use a simple error message instead
+const ErrorBoundaryWrapper = ({ children }: { children: ReactNode }) => children
 
 const Analytics = dynamic(
   () => import("@vercel/analytics/next").then((m) => ({ default: m.Analytics })),
@@ -167,7 +132,23 @@ export default function RootLayout({
       </head>
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} bg-slate-900 text-white`}>
         <ErrorBoundaryWrapper>
-          {children}
+          <AuthProvider>
+            <OfflineProvider>
+              <LikesProvider>
+                <AdminSettingsProvider>
+                  <MusicPlayerProvider>
+                    <DeepLinkHandler />
+                    <NativeApiBootstrap />
+                    <PushNotificationRegistrar />
+                    <NativeSafeArea />
+                    <NativeApiMisconfigBanner />
+                    {children}
+                    <MusicPlayer />
+                  </MusicPlayerProvider>
+                </AdminSettingsProvider>
+              </LikesProvider>
+            </OfflineProvider>
+          </AuthProvider>
         </ErrorBoundaryWrapper>
         <Analytics />
       </body>

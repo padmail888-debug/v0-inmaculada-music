@@ -1,5 +1,7 @@
 "use client"
 
+export const revalidate = 0
+
 import { useAuth } from "@/hooks/use-auth"
 import { useAdminSettings } from "@/hooks/use-admin-settings"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"

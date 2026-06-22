@@ -64,8 +64,4 @@ const nextConfig = {
   },
 }
 
-if (!process.env.VERCEL) {
-  nextConfig.output = "export"
-}
-
 export default nextConfig

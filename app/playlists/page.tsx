@@ -1,5 +1,8 @@
  "use client"
 
+export const revalidate = 0
+
+
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"

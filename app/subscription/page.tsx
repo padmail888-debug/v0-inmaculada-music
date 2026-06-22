@@ -1,7 +1,9 @@
 "use client"
 
+export const revalidate = 0
+
 import { useState, useEffect, Suspense } from "react"
-import dynamic from "next/dynamic"
+import dynamicImport from "next/dynamic"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -12,7 +14,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { AppShell } from "@/components/layout/app-shell"
 import { STRIPE_CONFIG } from "@/lib/stripe-config"
 
-const StripeCheckout = dynamic(() => import("@/components/payment/stripe-checkout"), { ssr: false })
+const StripeCheckout = dynamicImport(() => import("@/components/payment/stripe-checkout"), { ssr: false })
 
 function SubscriptionContent() {
   const { user } = useAuth()

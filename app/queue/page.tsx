@@ -1,5 +1,8 @@
 "use client"
 
+export const revalidate = 0
+
+
 import { useAuth } from "@/hooks/use-auth"
 import { useMusicPlayer } from "@/hooks/use-music-player"
 import { AppShell } from "@/components/layout/app-shell"

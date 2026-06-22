@@ -1,5 +1,8 @@
 "use client"
 
+export const revalidate = 0
+
+
 import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"

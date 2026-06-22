@@ -1,5 +1,8 @@
 "use client"
 
+export const revalidate = 0
+
+
 import type React from "react"
 import { FeaturedBanner } from "@/components/featured-content/featured-banner"
 import { ArtistShell } from "@/components/layout/artist-shell"

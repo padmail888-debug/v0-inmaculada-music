@@ -1,5 +1,8 @@
 "use client"
 
+export const revalidate = 0
+
+
 import { useAuth } from "@/hooks/use-auth"
 import { useOffline } from "@/hooks/use-offline"
 import { useMusicPlayer } from "@/hooks/use-music-player"

@@ -1,5 +1,8 @@
 "use client"
 
+export const revalidate = 0
+
+
 import type React from "react"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
