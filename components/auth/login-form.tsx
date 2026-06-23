@@ -112,8 +112,8 @@ export function LoginForm() {
         })
       }
 
-      // Full navigation ensures auth state + Supabase session are restored reliably on Vercel/production.
-      window.location.assign(destination)
+      // Use router.push for in-app navigation to stay within the current environment (preview/production)
+      router.push(destination)
       return
     } catch (error) {
       console.error("Login error:", error)
