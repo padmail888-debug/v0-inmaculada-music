@@ -64,7 +64,10 @@ const nextConfig = {
   },
 }
 
-if (!process.env.VERCEL) {
+// Capacitor APK/IPA: static export on `next build` → `out/` for `npx cap sync`
+// Vercel: VERCEL=1 during build → full Next.js with /api routes
+// Local `next dev`: no export (API routes + headers work; avoids export warnings)
+if (!process.env.VERCEL && process.env.NODE_ENV === "production") {
   nextConfig.output = "export"
 }
 

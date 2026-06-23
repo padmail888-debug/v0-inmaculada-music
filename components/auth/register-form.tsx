@@ -9,8 +9,7 @@ import { Label } from "@/components/ui/label"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { getSupabase } from "@/lib/supabase/client"
-import type { UserRole } from "@/hooks/use-auth"
-import { mapSupabaseRoleToUserRole, resolveRawRoleFromAuthUser } from "@/lib/user-role"
+import { getPostLoginPath, resolveUserRoleFromAuthUser } from "@/lib/user-role"
 
 export function RegisterForm() {
   const [formData, setFormData] = useState({
@@ -71,9 +70,7 @@ export function RegisterForm() {
       const meta = (supaUser.user_metadata ?? {}) as Record<string, unknown>
       const appMeta = (supaUser.app_metadata ?? {}) as Record<string, unknown>
 
-      const rawRole = resolveRawRoleFromAuthUser(appMeta, meta, undefined, supaUser.role)
-
-      const userRole: UserRole = mapSupabaseRoleToUserRole(rawRole)
+      const userRole = resolveUserRoleFromAuthUser(appMeta, meta, data.session?.access_token)
 
       const userData = {
         id: supaUser.id,
@@ -88,14 +85,10 @@ export function RegisterForm() {
       if (data.session) {
         login(userData)
 
-        if (userRole === "superadmin") {
-          router.push("/admin")
-        } else if (userRole === "artist") {
-          router.push("/artist/profile")
-        } else if (userRole === "premium") {
+        if (userRole === "premium") {
           router.push("/payment")
         } else {
-          router.push("/dashboard")
+          router.push(getPostLoginPath(userRole))
         }
       } else {
         alert("Cuenta creada. Revisa tu email para confirmar la cuenta antes de iniciar sesión.")

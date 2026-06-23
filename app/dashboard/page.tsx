@@ -4,10 +4,25 @@ import { useAuth } from "@/hooks/use-auth"
 import { AppShell } from "@/components/layout/app-shell"
 import { MusicGrid } from "@/components/music/music-grid"
 import { FeaturedCarousel } from "@/components/featured-content/featured-carousel"
-import { useEffect, useLayoutEffect, useState, Suspense } from "react"
+import { useEffect, useLayoutEffect, useState, Suspense, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { getSupabase } from "@/lib/supabase/client"
 import { DashboardSuccessBanner } from "./dashboard-success-banner"
+import type { User } from "@/lib/auth-types"
+import { getPostLoginPath, mapSupabaseRoleToUserRole } from "@/lib/user-role"
+
+function readUserFromStorage(): User | null {
+  if (typeof window === "undefined") return null
+  try {
+    const raw = localStorage.getItem("user")
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as User
+    if (!parsed?.id) return null
+    return { ...parsed, role: mapSupabaseRoleToUserRole(parsed.role) }
+  } catch {
+    return null
+  }
+}
 
 interface Track {
   id: string
@@ -24,10 +39,15 @@ export default function DashboardPage() {
   const { user, isLoading, setUserRole, refreshUserFromSupabase } = useAuth()
   const router = useRouter()
   const [tracks, setTracks] = useState<Track[]>([])
+  const [authChecked, setAuthChecked] = useState(false)
+
+  const storedUser = useMemo((): User | null => readUserFromStorage(), [user, isLoading])
+
+  const activeUser = user ?? storedUser
 
   // On return from checkout: set role from plan (premium | artist-pro). Only Artist Pro redirects to /artist/profile.
   useLayoutEffect(() => {
-    if (typeof window === "undefined" || !user?.id) return
+    if (typeof window === "undefined" || !activeUser?.id) return
     const params = new URLSearchParams(window.location.search)
     if (params.get("success") !== "true") return
     const planParam = params.get("plan")
@@ -36,27 +56,57 @@ export default function DashboardPage() {
     if (plan === "artist-pro") {
       router.replace("/artist/profile?success=true")
     }
-  }, [user?.id, setUserRole, router])
+  }, [activeUser?.id, setUserRole, router])
 
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (isLoading) return
+
+    let cancelled = false
+    async function verifyAccess() {
+      if (activeUser) {
+        const homePath = getPostLoginPath(mapSupabaseRoleToUserRole(activeUser.role))
+        if (homePath !== "/dashboard") {
+          router.replace(homePath)
+          return
+        }
+        if (!cancelled) setAuthChecked(true)
+        return
+      }
+
+      const supabase = getSupabase()
+      const { data } = await supabase.auth.getSession()
+      if (cancelled) return
+
+      if (data.session?.access_token) {
+        const refreshed = await refreshUserFromSupabase()
+        if (cancelled) return
+        const recovered = refreshed ?? readUserFromStorage()
+        if (!recovered) {
+          router.replace("/login")
+        }
+        if (!cancelled) setAuthChecked(true)
+        return
+      }
+
       router.replace("/login")
-      return
+      if (!cancelled) setAuthChecked(true)
     }
-    if (!isLoading && user && (user.role === "artist" || user.role === "artist-pro")) {
-      router.replace("/artist/profile")
+
+    void verifyAccess()
+    return () => {
+      cancelled = true
     }
-  }, [isLoading, user, router])
+  }, [isLoading, activeUser, router, refreshUserFromSupabase])
 
   // Sync role from server. After checkout (success=true), short delay so webhook has time to update Supabase.
   useEffect(() => {
-    if (!user?.id) return
+    if (!activeUser?.id) return
     const isReturnFromCheckout =
       typeof window !== "undefined" && new URLSearchParams(window.location.search).get("success") === "true"
     const delayMs = isReturnFromCheckout ? 800 : 400
     const t = setTimeout(() => void refreshUserFromSupabase(), delayMs)
     return () => clearTimeout(t)
-  }, [user?.id, refreshUserFromSupabase])
+  }, [activeUser?.id, refreshUserFromSupabase])
 
   useEffect(() => {
     const supabase = getSupabase()
@@ -115,10 +165,32 @@ export default function DashboardPage() {
   }, [])
 
   const isArtistAccount =
-    user?.role === "artist" || user?.role === "artist-pro"
-  const showContent = !isLoading && user && !isArtistAccount
+    activeUser?.role === "artist" || activeUser?.role === "artist-pro"
+  const showContent = authChecked && !isLoading && !!activeUser && !isArtistAccount
 
-  if (!isLoading && isArtistAccount) {
+  if (authChecked && !isLoading && !activeUser) {
+    return (
+      <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+          <p className="text-slate-300 animate-pulse">Redirigiendo...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!authChecked || isLoading) {
+    return (
+      <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+          <p className="text-slate-300 animate-pulse">Cargando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (isArtistAccount) {
     return (
       <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/30 border-t-white" />
@@ -135,9 +207,11 @@ export default function DashboardPage() {
       {showContent ? (
         <>
           <div className="mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-2">Bienvenido, {user.name}</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2">
+              Bienvenido, {activeUser.name || activeUser.email || "oyente"}
+            </h1>
             <p className="text-slate-300 text-sm sm:text-base">
-              {user.role === "premium" || user.role === "artist-pro"
+              {activeUser.role === "premium" || activeUser.role === "artist-pro"
                 ? "Disfruta de tu música sin límites"
                 : "Descubre nueva música"}
             </p>
@@ -149,7 +223,11 @@ export default function DashboardPage() {
 
           <MusicGrid
             tracks={tracks}
-            userRole={user.role === "superadmin" ? "premium" : (user.role as "free" | "premium" | "artist" | "artist-pro")}
+            userRole={
+              activeUser.role === "superadmin"
+                ? "premium"
+                : (activeUser.role as "free" | "premium" | "artist" | "artist-pro")
+            }
           />
         </>
       ) : (
