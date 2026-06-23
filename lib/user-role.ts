@@ -51,7 +51,7 @@ export function userShouldHideUpgradePrompt(user: User | null | undefined): bool
   return false
 }
 
-/** Prefer app_metadata (Stripe webhook) over user_metadata (often stale "free" from signup). */
+/** Prefer highest-tier role across metadata sources (do not let stale app_metadata "free" win). */
 export function resolveRawRoleFromAuthUser(
   appMetadata?: Record<string, unknown> | null,
   userMetadata?: Record<string, unknown> | null,
@@ -60,13 +60,57 @@ export function resolveRawRoleFromAuthUser(
 ): string | undefined {
   const appMeta = appMetadata ?? {}
   const userMeta = userMetadata ?? {}
-  return (
-    serverRole ??
-    (appMeta.role as string | undefined) ??
-    (userMeta.role as string | undefined) ??
-    fallbackRole ??
-    undefined
+  const candidates = [
+    serverRole,
+    appMeta.role as string | undefined,
+    userMeta.role as string | undefined,
+    fallbackRole && !["authenticated", "anon"].includes(fallbackRole) ? fallbackRole : undefined,
+  ].filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+
+  if (candidates.length === 0) return undefined
+
+  let bestRole: UserRole = "free"
+  let bestRaw: string = candidates[0]
+  for (const raw of candidates) {
+    const mapped = mapSupabaseRoleToUserRole(raw)
+    if (ROLE_TIER[mapped] >= ROLE_TIER[bestRole]) {
+      bestRole = mapped
+      bestRaw = raw
+    }
+  }
+  return bestRaw
+}
+
+/** Resolve the app role from all auth metadata sources (never pick stale "free" over artist/admin). */
+export function resolveUserRoleFromAuthUser(
+  appMetadata?: Record<string, unknown> | null,
+  userMetadata?: Record<string, unknown> | null,
+  accessToken?: string | null,
+  serverRole?: string | null,
+): UserRole {
+  const jwtRole = roleFromAccessToken(accessToken)
+  return pickBestUserRole(
+    serverRole,
+    appMetadata?.role as string | undefined,
+    userMetadata?.role as string | undefined,
+    jwtRole ?? undefined,
   )
+}
+
+/** Default landing route after sign-in (honours optional ?redirect=). */
+export function getPostLoginPath(role: UserRole, redirectTo?: string | null): string {
+  const safeRedirect = redirectTo?.startsWith("/") ? redirectTo : null
+  if (safeRedirect) return safeRedirect
+
+  switch (role) {
+    case "superadmin":
+      return "/admin"
+    case "artist":
+    case "artist-pro":
+      return "/artist/profile"
+    default:
+      return "/dashboard"
+  }
 }
 
 export function roleFromAccessToken(accessToken: string | null | undefined): UserRole | null {

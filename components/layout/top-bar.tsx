@@ -20,6 +20,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import { useNotificationInboxPreview } from "@/hooks/use-notification-inbox-preview"
+import { getPostLoginPath } from "@/lib/user-role"
 
 const navBtnClass =
   "text-white hover:bg-white/10 min-h-[44px] min-w-[44px] p-0 sm:min-h-9 sm:min-w-9 sm:px-3"
@@ -66,11 +67,7 @@ export function TopBar() {
   }
 
   const goHome = () => {
-    if (user?.role === "artist" || user?.role === "artist-pro") {
-      router.push("/artist/profile")
-      return
-    }
-    router.push("/dashboard")
+    router.push(user?.role ? getPostLoginPath(user.role) : "/dashboard")
   }
 
   const getRoleIcon = (role: string) => {

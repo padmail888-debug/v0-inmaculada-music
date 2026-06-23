@@ -24,7 +24,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
-import { hasPaidAccess, userShouldHideUpgradePrompt } from "@/lib/user-role"
+import { hasPaidAccess, userShouldHideUpgradePrompt, getPostLoginPath } from "@/lib/user-role"
 
 type SidebarNavProps = {
   onNavigate?: () => void
@@ -96,8 +96,7 @@ function SidebarNav({ onNavigate }: SidebarNavProps) {
     onNavigate?.()
   }
 
-  const homeHref =
-    user?.role === "artist" || user?.role === "artist-pro" ? "/artist/profile" : "/dashboard"
+  const homeHref = user?.role ? getPostLoginPath(user.role) : "/dashboard"
 
   return (
     <>

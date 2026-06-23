@@ -10,8 +10,11 @@ import { useAuth } from "@/hooks/use-auth"
 import Link from "next/link"
 import { sendLoginSuccessNotification } from "@/lib/notification-client"
 import { getSupabase } from "@/lib/supabase/client"
-import type { UserRole } from "@/hooks/use-auth"
-import { mapSupabaseRoleToUserRole, resolveRawRoleFromAuthUser } from "@/lib/user-role"
+import {
+  getPostLoginPath,
+  pickBestUserRole,
+  resolveUserRoleFromAuthUser,
+} from "@/lib/user-role"
 
 export function LoginForm() {
   const [email, setEmail] = useState("")
@@ -78,8 +81,7 @@ export function LoginForm() {
       const meta = (supaUser.user_metadata ?? {}) as Record<string, unknown>
       const appMeta = (supaUser.app_metadata ?? {}) as Record<string, unknown>
 
-      const rawRole = resolveRawRoleFromAuthUser(appMeta, meta, undefined, supaUser.role)
-      const userRole: UserRole = mapSupabaseRoleToUserRole(rawRole)
+      const userRole = resolveUserRoleFromAuthUser(appMeta, meta, data.session?.access_token)
       const userName =
         (meta.name as string | undefined) ??
         (meta.full_name as string | undefined) ??
@@ -98,39 +100,21 @@ export function LoginForm() {
 
       // Sync role from server (app_metadata) so Artist Pro / Premium show correctly after re-login
       const updatedUser = await refreshUserFromSupabase()
-      const roleForRedirect = updatedUser?.role ?? userRole
+      const roleForRedirect = pickBestUserRole(updatedUser?.role, userRole)
 
-      const safeRedirect = redirectTo?.startsWith("/") ? redirectTo : null
-      if (safeRedirect) {
-        router.push(safeRedirect)
-      } else if (roleForRedirect === "superadmin") {
-        router.push("/admin")
-      } else if (roleForRedirect === "artist-pro" || roleForRedirect === "artist") {
-        router.push("/artist/profile")
-      } else {
-        router.push("/dashboard")
-      }
+      const destination = getPostLoginPath(roleForRedirect, redirectTo)
 
-      // Inbox + push after redirect — do not block login (FCM token may register a moment later).
+      // Inbox + push before redirect — fire-and-forget (do not block navigation).
       const loginAccessToken = data.session?.access_token || (await getFreshAccessTokenWithRetry())
       if (loginAccessToken) {
-        void sendLoginSuccessNotification(loginAccessToken)
-          .then((createdNotification) => {
-            if (typeof window === "undefined" || !createdNotification) return
-            sessionStorage.setItem(
-              "pending_notification",
-              JSON.stringify({ ...createdNotification, pending_at: new Date().toISOString() }),
-            )
-            window.dispatchEvent(
-              new CustomEvent("app:notification-created", {
-                detail: { notification: createdNotification },
-              }),
-            )
-          })
-          .catch((emitErr) => {
-            console.error("Login notification emit failed:", emitErr)
-          })
+        void sendLoginSuccessNotification(loginAccessToken).catch((emitErr) => {
+          console.error("Login notification emit failed:", emitErr)
+        })
       }
+
+      // Full navigation ensures auth state + Supabase session are restored reliably on Vercel/production.
+      window.location.assign(destination)
+      return
     } catch (error) {
       console.error("Login error:", error)
     } finally {
