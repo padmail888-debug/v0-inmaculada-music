@@ -39,12 +39,16 @@ export default function DashboardPage() {
   }, [user?.id, setUserRole, router])
 
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (isLoading) return
+    
+    if (!user) {
       router.replace("/login")
       return
     }
-    if (!isLoading && user && (user.role === "artist" || user.role === "artist-pro")) {
+    
+    if (user.role === "artist" || user.role === "artist-pro") {
       router.replace("/artist/profile")
+      return
     }
   }, [isLoading, user, router])
 
@@ -117,14 +121,6 @@ export default function DashboardPage() {
   const isArtistAccount =
     user?.role === "artist" || user?.role === "artist-pro"
   const showContent = !isLoading && user && !isArtistAccount
-
-  if (!isLoading && isArtistAccount) {
-    return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-      </div>
-    )
-  }
 
   return (
     <AppShell>
