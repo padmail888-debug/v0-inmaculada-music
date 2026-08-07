@@ -99,12 +99,12 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor/status-bar"
 
 SPEC CHECKSUMS:
-  Capacitor: 3aff4dee0552f6badcd04f47ab3174387d71f47d
-  CapacitorApp: a19ccb4f5f32d2534be5c6f524d5a9b614a1e8a7
+  Capacitor: 187bd7847b6f71467015a20200a1a071be3e5f14
+  CapacitorApp: 22c94146dfaae1159ab7059cbd51e76d9f2d45ec
   CapacitorCordova: be703980ca797f847c3356f78fa175d21c8330c2
-  CapacitorFirebaseMessaging: 05bf93285c8ae5aeaaddaa938ba1db4fda7305ad
-  CapacitorLocalNotifications: 801867e687c42dd2b33c1e22e08f48e6738d2f72
-  CapacitorStatusBar: 149cde8f1328ec3aa6cbdd872a55137ae3f98b16
+  CapacitorFirebaseMessaging: 3b4ff762b42ad3137c911a96ec06bf8bfd6fb122
+  CapacitorLocalNotifications: b205182fab8947a0c412d56d72b709738a9d28e7
+  CapacitorStatusBar: 38665f1a18c55677098367a29f6b42126b72dc65
   FirebaseCore: efb3893e5b94f32b86e331e3bd6dadf18b66568e
   FirebaseCoreInternal: 9afa45b1159304c963da48addb78275ef701c6b4
   FirebaseInstallations: 317270fec08a5d418fdbc8429282238cab3ac843

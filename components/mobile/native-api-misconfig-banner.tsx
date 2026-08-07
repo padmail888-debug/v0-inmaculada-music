@@ -27,9 +27,11 @@ export function NativeApiMisconfigBanner() {
       role="alert"
       className="fixed bottom-0 left-0 right-0 z-[100] bg-amber-600 px-4 py-3 text-center text-sm font-medium text-amber-950 shadow-lg"
     >
-      La app nativa necesita NEXT_PUBLIC_APP_URL (URL del servidor donde corre Next.js con /api). Añádela en
-      .env.local, ejecuta <code className="rounded bg-amber-800/30 px-1">npm run build</code>,{" "}
-      <code className="rounded bg-amber-800/30 px-1">npx cap sync android</code>, y vuelve a instalar el APK.
+      La app nativa no encuentra el servidor API. Local: ejecuta{" "}
+      <code className="rounded bg-amber-800/30 px-1">npm run dev:lan</code> en tu PC y{" "}
+      <code className="rounded bg-amber-800/30 px-1">npm run cap:build:android:dev</code>. Producción:
+      verifica <code className="rounded bg-amber-800/30 px-1">NEXT_PUBLIC_APP_URL</code> y ejecuta{" "}
+      <code className="rounded bg-amber-800/30 px-1">npm run cap:build:android:prod</code>.
     </div>
   )
 }

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { getToken, onMessage } from "firebase/messaging"
 import { useAuth } from "@/hooks/use-auth"
 import { resolveApiUrl, shouldUseCapacitorNativePush } from "@/lib/api-base"
-import { onApiBaseReady } from "@/lib/native-api-resolver"
+import { getCachedResolvedApiBase, onApiBaseReady, resolveNativeApiBase } from "@/lib/native-api-resolver"
 import { ensureFirebaseWebApp } from "@/lib/init-firebase-web"
 import { getFirebaseMessagingIfSupported } from "@/lib/firebase-client"
 import { getPushPlatform } from "@/lib/push-platform"
@@ -14,6 +14,45 @@ import { showForegroundPushNotification } from "@/lib/foreground-push-notificati
 import { getSupabase } from "@/lib/supabase/client"
 
 const ANDROID_CHANNEL_ID = "inmaculada_default"
+
+async function ensureNativeApiBaseReady(): Promise<string | null> {
+  if (getCachedResolvedApiBase()) return getCachedResolvedApiBase()
+  return resolveNativeApiBase()
+}
+
+/** Android 13+ requires POST_NOTIFICATIONS at runtime for FCM tray display. */
+async function ensureAndroidNotificationPermission(): Promise<void> {
+  if (getPushPlatform() !== "android") return
+  try {
+    const { LocalNotifications } = await import("@capacitor/local-notifications")
+    const perm = await LocalNotifications.checkPermissions()
+    if (perm.display !== "granted") {
+      await LocalNotifications.requestPermissions()
+    }
+  } catch (err) {
+    console.warn("[notifications] Android POST_NOTIFICATIONS request failed:", err)
+  }
+}
+
+async function registerFirebaseServiceWorker(): Promise<ServiceWorkerRegistration> {
+  const swPath = "/firebase-messaging-sw.js"
+  const probe = await fetch(swPath, { method: "HEAD", cache: "no-store" })
+  if (!probe.ok) {
+    throw new Error(
+      `firebase-messaging-sw.js returned ${probe.status}. Deploy with Firebase env vars on Vercel, then redeploy.`,
+    )
+  }
+
+  const existing = await navigator.serviceWorker.getRegistrations()
+  for (const registration of existing) {
+    if (registration.active?.scriptURL?.includes("firebase-messaging-sw")) {
+      await registration.update()
+      return registration
+    }
+  }
+
+  return navigator.serviceWorker.register(swPath, { scope: "/" })
+}
 
 function deepLinkFromNotificationData(data: Record<string, unknown> | undefined): string {
   if (!data) return ""
@@ -64,7 +103,7 @@ export function PushNotificationRegistrar() {
         return
       }
 
-      const swRegistration = await navigator.serviceWorker.register("/firebase-messaging-sw.js")
+      const swRegistration = await registerFirebaseServiceWorker()
       await navigator.serviceWorker.ready
 
       const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY
@@ -99,17 +138,22 @@ export function PushNotificationRegistrar() {
     }
 
     async function setupNativePush() {
+      const apiBase = await ensureNativeApiBaseReady()
       const registerUrl = resolveApiUrl("/api/notifications/register-device")
-      if (!registerUrl) {
+      if (!registerUrl || !apiBase) {
         console.error(
-          "[notifications] Native push aborted: NEXT_PUBLIC_APP_URL invalid or missing — cannot POST /api/notifications/register-device",
+          "[notifications] Native push aborted: no reachable API — run npm run dev:lan (local) or set NEXT_PUBLIC_APP_URL (production), then rebuild the APK.",
         )
         return
       }
 
+      console.log("[notifications] Native push using API base:", apiBase)
+
       const { FirebaseMessaging } = await import("@capacitor-firebase/messaging")
 
       const platform = getPushPlatform()
+
+      await ensureAndroidNotificationPermission()
 
       if (platform === "android") {
         try {

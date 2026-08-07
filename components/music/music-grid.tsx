@@ -21,6 +21,8 @@ import { useLikes } from "@/hooks/use-likes"
 import { useAuth } from "@/hooks/use-auth"
 import { getSupabase } from "@/lib/supabase/client"
 import { emitNotificationEvent } from "@/lib/notification-client"
+import { AddToPlaylistSubmenu } from "@/components/playlists/add-to-playlist-submenu"
+import { AddToPlaylistButton } from "@/components/playlists/add-to-playlist-button"
 
 interface Track {
   id: string
@@ -196,6 +198,7 @@ export function MusicGrid({ tracks, userRole }: MusicGridProps) {
                               />
                               {isLiked(track.id) ? "Quitar de favoritas" : "Añadir a Canciones que te gustan"}
                             </DropdownMenuItem>
+                            <AddToPlaylistSubmenu songId={track.id} songTitle={track.title} />
                             <DropdownMenuSeparator className="bg-slate-700" />
                             <DropdownMenuSub>
                               <DropdownMenuSubTrigger className="text-white hover:bg-slate-700">
@@ -257,14 +260,21 @@ export function MusicGrid({ tracks, userRole }: MusicGridProps) {
                   <div className="flex items-center justify-between pt-2">
                     <span className="text-xs text-slate-400">{formatDuration(track.duration)}</span>
 
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => handleLike(track.id, e)}
-                      className={`${isLiked(track.id) ? "text-green-500 hover:text-green-400" : "text-slate-400 hover:text-white"} hover:bg-white/10 transition-colors`}
-                    >
-                      <Heart className={`h-4 w-4 ${isLiked(track.id) ? "fill-current" : ""}`} />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <AddToPlaylistButton
+                        songId={track.id}
+                        songTitle={track.title}
+                        className="text-purple-300 hover:bg-purple-900/40 hover:text-purple-100"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => handleLike(track.id, e)}
+                        className={`${isLiked(track.id) ? "text-green-500 hover:text-green-400" : "text-slate-400 hover:text-white"} hover:bg-white/10 transition-colors`}
+                      >
+                        <Heart className={`h-4 w-4 ${isLiked(track.id) ? "fill-current" : ""}`} />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>

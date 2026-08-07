@@ -10,9 +10,10 @@ import {
   Upload,
   User,
   Settings,
-  Shield,
   List,
   Menu,
+  Star,
+  LayoutDashboard,
 } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
@@ -25,12 +26,14 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { hasPaidAccess, userShouldHideUpgradePrompt, getPostLoginPath } from "@/lib/user-role"
+import { createPlaylist, playlistDetailHref } from "@/lib/playlists"
 
 type SidebarNavProps = {
   onNavigate?: () => void
 }
 
-const sidebarNavBtnClass = "w-full justify-start text-white hover:bg-white/10"
+const sidebarNavBtnClass =
+  "flex w-full min-h-[40px] items-center rounded-md px-3 py-2 text-sm font-medium text-white hover:bg-white/10"
 
 function SidebarNavLink({
   href,
@@ -53,12 +56,10 @@ function SidebarNavLink({
   }
 
   return (
-    <Button asChild variant="ghost" className={sidebarNavBtnClass}>
-      <Link href={href} onClick={handleClick}>
-        <Icon className="mr-3 h-5 w-5" />
-        {children}
-      </Link>
-    </Button>
+    <Link href={href} onClick={handleClick} className={sidebarNavBtnClass}>
+      <Icon className="mr-3 h-5 w-5 shrink-0" aria-hidden />
+      <span>{children}</span>
+    </Link>
   )
 }
 
@@ -82,21 +83,69 @@ function SidebarNav({ onNavigate }: SidebarNavProps) {
   const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false)
   const [playlistName, setPlaylistName] = useState("")
   const [playlistDescription, setPlaylistDescription] = useState("")
+  const [isSaving, setIsSaving] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user?.id || userShouldHideUpgradePrompt(user)) return
     void refreshUserFromSupabase()
   }, [user?.id, user?.role, user?.subscription?.status, refreshUserFromSupabase])
 
-  const handleCreatePlaylist = () => {
-    console.log("Creating playlist:", { name: playlistName, description: playlistDescription })
-    setPlaylistName("")
-    setPlaylistDescription("")
-    setIsCreatePlaylistOpen(false)
-    onNavigate?.()
+  const handleCreatePlaylist = async () => {
+    if (!user?.id) {
+      setCreateError("Inicia sesión para crear una playlist.")
+      return
+    }
+    const name = playlistName.trim()
+    const description = playlistDescription.trim()
+    if (!name) return
+
+    setIsSaving(true)
+    setCreateError(null)
+    try {
+      const playlist = await createPlaylist({
+        userId: user.id,
+        name,
+        description: description || null,
+        isPublic: false,
+      })
+
+      setPlaylistName("")
+      setPlaylistDescription("")
+      setIsCreatePlaylistOpen(false)
+      onNavigate?.()
+      window.setTimeout(() => router.push(playlistDetailHref(playlist.id)), 100)
+    } catch (err) {
+      console.error("Error creating playlist:", err)
+      setCreateError(err instanceof Error ? err.message : "Error al crear playlist.")
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const homeHref = user?.role ? getPostLoginPath(user.role) : "/dashboard"
+  const isSuperAdmin = user?.role === "superadmin"
+
+  // Super Admin: admin tools only — not the listener/artist library menu.
+  if (isSuperAdmin) {
+    return (
+      <>
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-white">MusicStream</h2>
+          <p className="mt-1 text-xs text-amber-200/80">Super Admin</p>
+        </div>
+
+        <nav className="space-y-2">
+          <SidebarNavLink href="/admin" icon={LayoutDashboard} onNavigate={onNavigate}>
+            Panel Admin
+          </SidebarNavLink>
+          <SidebarNavLink href="/admin/featured" icon={Star} onNavigate={onNavigate}>
+            Contenido Destacado
+          </SidebarNavLink>
+        </nav>
+      </>
+    )
+  }
 
   return (
     <>
@@ -132,34 +181,42 @@ function SidebarNav({ onNavigate }: SidebarNavProps) {
             Mi Perfil de Artista
           </SidebarNavLink>
         )}
-
-        {user?.role === "superadmin" && (
-          <SidebarNavLink href="/admin" icon={Shield} onNavigate={onNavigate}>
-            Panel Admin
-          </SidebarNavLink>
-        )}
       </nav>
 
       <div className="mt-8 border-t border-white/10 pt-4">
-        <Dialog open={isCreatePlaylistOpen} onOpenChange={setIsCreatePlaylistOpen}>
+        <Dialog
+          open={isCreatePlaylistOpen}
+          onOpenChange={(open) => {
+            setIsCreatePlaylistOpen(open)
+            if (!open) setCreateError(null)
+          }}
+        >
           <DialogTrigger asChild>
-            <Button variant="ghost" className="mb-2 w-full justify-start text-white hover:bg-white/10">
+            <Button
+              variant="ghost"
+              className="mb-2 min-h-[44px] w-full justify-start text-white hover:bg-white/10"
+            >
               <Plus className="mr-3 h-5 w-5" />
               Crear playlist
             </Button>
           </DialogTrigger>
-          <DialogContent className="border-slate-700 bg-slate-800">
+          <DialogContent className="max-h-[85dvh] overflow-y-auto border-slate-700 bg-slate-800">
             <DialogHeader>
               <DialogTitle className="text-white">Crear nueva playlist</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
+              {createError && (
+                <div className="rounded border border-red-700 bg-red-900/40 p-3 text-sm text-red-200">
+                  {createError}
+                </div>
+              )}
               <div>
                 <label className="mb-2 block text-sm font-medium text-white">Nombre de la playlist</label>
                 <Input
                   placeholder="Mi playlist #1"
                   value={playlistName}
                   onChange={(e) => setPlaylistName(e.target.value)}
-                  className="border-slate-600 bg-slate-700 text-white"
+                  className="min-h-[44px] border-slate-600 bg-slate-700 text-white"
                 />
               </div>
               <div>
@@ -171,16 +228,20 @@ function SidebarNav({ onNavigate }: SidebarNavProps) {
                   className="border-slate-600 bg-slate-700 text-white"
                 />
               </div>
-              <div className="flex justify-end space-x-2">
-                <Button variant="ghost" onClick={() => setIsCreatePlaylistOpen(false)} className="text-white">
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Button
+                  variant="ghost"
+                  onClick={() => setIsCreatePlaylistOpen(false)}
+                  className="min-h-[44px] text-white"
+                >
                   Cancelar
                 </Button>
                 <Button
-                  onClick={handleCreatePlaylist}
-                  disabled={!playlistName.trim()}
-                  className="bg-green-500 hover:bg-green-600"
+                  onClick={() => void handleCreatePlaylist()}
+                  disabled={!playlistName.trim() || isSaving || !user}
+                  className="min-h-[44px] bg-green-500 hover:bg-green-600"
                 >
-                  Crear
+                  {isSaving ? "Creando..." : "Crear"}
                 </Button>
               </div>
             </div>
@@ -208,18 +269,16 @@ function SidebarNav({ onNavigate }: SidebarNavProps) {
         <div className="mt-8 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 p-4">
           <h3 className="mb-2 font-semibold">Actualiza a Premium</h3>
           <p className="mb-3 text-sm text-white/80">Escucha sin anuncios y descarga música</p>
-          <Button asChild size="sm" className="w-full bg-white text-black hover:bg-white/90">
-            <Link
-              href="/subscription"
-              onClick={(event) => {
-                if (!onNavigate) return
-                event.preventDefault()
-                onNavigate()
-                window.setTimeout(() => router.push("/subscription"), 100)
-              }}
-            >
-              Actualizar
-            </Link>
+          <Button
+            type="button"
+            size="sm"
+            className="w-full bg-white text-black hover:bg-white/90"
+            onClick={() => {
+              onNavigate?.()
+              window.setTimeout(() => router.push("/subscription"), onNavigate ? 100 : 0)
+            }}
+          >
+            Actualizar
           </Button>
         </div>
       )}

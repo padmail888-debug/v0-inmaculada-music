@@ -2,28 +2,49 @@
 
 import type React from "react"
 import { useState } from "react"
+import { Capacitor } from "@capacitor/core"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import Link from "next/link"
-import { sendLoginSuccessNotification } from "@/lib/notification-client"
+import { sendLoginSuccessNotification, waitForFcmTokenRegistered } from "@/lib/notification-client"
+import {
+  nativeCrossOriginFetchInit,
+  resolveApiUrl,
+  shouldUseCapacitorNativePush,
+  shouldUseRemoteApiBase,
+} from "@/lib/api-base"
+import { getCachedResolvedApiBase, resolveNativeApiBase } from "@/lib/native-api-resolver"
 import { getSupabase } from "@/lib/supabase/client"
 import {
   getPostLoginPath,
   pickBestUserRole,
   resolveUserRoleFromAuthUser,
 } from "@/lib/user-role"
+import { Shield } from "lucide-react"
+
+function isNativeApp() {
+  try {
+    return Capacitor.isNativePlatform()
+  } catch {
+    return false
+  }
+}
 
 export function LoginForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [loginAsAdmin, setLoginAsAdmin] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get("redirect")
   const { login, refreshUserFromSupabase } = useAuth()
+  const allowAdminLogin = !isNativeApp()
+  const adminLoginEnabled = allowAdminLogin && loginAsAdmin
 
   async function getFreshAccessTokenWithRetry() {
     const supabase = getSupabase()
@@ -36,13 +57,38 @@ export function LoginForm() {
     return null
   }
 
+  /** Validate against hardcoded Super Admin env credentials (server-side). */
+  async function verifyHardcodedSuperAdmin(loginEmail: string, loginPassword: string) {
+    if (shouldUseRemoteApiBase() && !getCachedResolvedApiBase()) {
+      await resolveNativeApiBase()
+    }
+
+    const url = resolveApiUrl("/api/auth/superadmin-login")
+    if (!url) {
+      throw new Error("No se pudo contactar el servidor para verificar Super Admin")
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+      ...nativeCrossOriginFetchInit,
+    })
+
+    const payload = (await response.json().catch(() => null)) as { error?: string; ok?: boolean } | null
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || "Credenciales incorrectas")
+    }
+  }
+
   const handleSocialLogin = async (provider: "google" | "apple" | "facebook") => {
     setIsLoading(true)
     try {
-      // Simulate social login process
       await new Promise((resolve) => setTimeout(resolve, 1500))
 
-      // Mock social login success
       const userData = {
         id: Date.now().toString(),
         email: `user@${provider}.com`,
@@ -60,12 +106,98 @@ export function LoginForm() {
     }
   }
 
+  const finishLogin = async (opts: {
+    supaUser: { id: string; email?: string | null; user_metadata?: Record<string, unknown>; app_metadata?: Record<string, unknown> }
+    accessToken?: string | null
+    forceSuperAdmin?: boolean
+  }) => {
+    const { supaUser, accessToken, forceSuperAdmin } = opts
+    const meta = (supaUser.user_metadata ?? {}) as Record<string, unknown>
+    const appMeta = (supaUser.app_metadata ?? {}) as Record<string, unknown>
+
+    let userRole = resolveUserRoleFromAuthUser(appMeta, meta, accessToken)
+    if (forceSuperAdmin) userRole = "superadmin"
+
+    const userName =
+      (meta.name as string | undefined) ??
+      (meta.full_name as string | undefined) ??
+      supaUser.email?.split("@")[0] ??
+      email
+
+    const userData = {
+      id: supaUser.id,
+      email: supaUser.email ?? email,
+      name: userName,
+      role: userRole,
+      subscription: null,
+    }
+
+    login(userData)
+
+    const updatedUser = await refreshUserFromSupabase()
+    const roleForRedirect = forceSuperAdmin
+      ? "superadmin"
+      : pickBestUserRole(updatedUser?.role, userRole)
+
+    const destination = forceSuperAdmin
+      ? "/admin"
+      : getPostLoginPath(roleForRedirect, redirectTo)
+
+    const loginAccessToken = accessToken || (await getFreshAccessTokenWithRetry())
+    if (loginAccessToken) {
+      void (async () => {
+        if (shouldUseCapacitorNativePush()) {
+          const tokenReady = await waitForFcmTokenRegistered(15_000)
+          if (!tokenReady) {
+            console.warn(
+              "[notifications] FCM token not ready before login push — will retry via register-device",
+            )
+          }
+        }
+        await sendLoginSuccessNotification(loginAccessToken)
+      })().catch((emitErr) => {
+        console.error("Login notification emit failed:", emitErr)
+      })
+    }
+
+    router.push(destination)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
       const supabase = getSupabase()
+
+      // ——— Super Admin path: web only, hardcoded credentials ———
+      if (adminLoginEnabled) {
+        try {
+          await verifyHardcodedSuperAdmin(email, password)
+        } catch (err) {
+          alert(err instanceof Error ? err.message : "Credenciales incorrectas")
+          return
+        }
+
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        })
+
+        if (error || !data.user) {
+          alert("Credenciales incorrectas")
+          return
+        }
+
+        await finishLogin({
+          supaUser: data.user,
+          accessToken: data.session?.access_token,
+          forceSuperAdmin: true,
+        })
+        return
+      }
+
+      // ——— Normal user / artist login (unchanged) ———
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -77,46 +209,14 @@ export function LoginForm() {
         return
       }
 
-      const supaUser = data.user
-      const meta = (supaUser.user_metadata ?? {}) as Record<string, unknown>
-      const appMeta = (supaUser.app_metadata ?? {}) as Record<string, unknown>
-
-      const userRole = resolveUserRoleFromAuthUser(appMeta, meta, data.session?.access_token)
-      const userName =
-        (meta.name as string | undefined) ??
-        (meta.full_name as string | undefined) ??
-        supaUser.email?.split("@")[0] ??
-        email
-
-      const userData = {
-        id: supaUser.id,
-        email: supaUser.email ?? email,
-        name: userName,
-        role: userRole,
-        subscription: null,
-      }
-
-      login(userData)
-
-      // Sync role from server (app_metadata) so Artist Pro / Premium show correctly after re-login
-      const updatedUser = await refreshUserFromSupabase()
-      const roleForRedirect = pickBestUserRole(updatedUser?.role, userRole)
-
-      const destination = getPostLoginPath(roleForRedirect, redirectTo)
-
-      // Inbox + push before redirect — fire-and-forget (do not block navigation).
-      const loginAccessToken = data.session?.access_token || (await getFreshAccessTokenWithRetry())
-      if (loginAccessToken) {
-        void sendLoginSuccessNotification(loginAccessToken).catch((emitErr) => {
-          console.error("Login notification emit failed:", emitErr)
-        })
-      }
-
-      // Use router.push for in-app navigation to stay within the current environment (preview/production)
-      router.push(destination)
-      return
+      await finishLogin({
+        supaUser: data.user,
+        accessToken: data.session?.access_token,
+        forceSuperAdmin: false,
+      })
     } catch (error) {
       console.error("Login error:", error)
+      alert("Ocurrió un error al iniciar sesión.")
     } finally {
       setIsLoading(false)
     }
@@ -200,7 +300,7 @@ export function LoginForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+            className="min-h-[48px] bg-white/10 border-white/20 text-base text-white placeholder:text-gray-400"
             placeholder="tu@email.com"
           />
         </div>
@@ -215,21 +315,53 @@ export function LoginForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+            className="min-h-[48px] bg-white/10 border-white/20 text-base text-white placeholder:text-gray-400"
             placeholder="••••••••"
           />
         </div>
 
-        <Button type="submit" className="w-full bg-purple-600 hover:bg-purple-700 text-white" disabled={isLoading}>
-          {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
+        {allowAdminLogin && (
+          <div className="flex min-h-[56px] items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-3">
+            <div className="flex min-w-0 items-start gap-2">
+              <Shield className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+              <div>
+                <Label htmlFor="login-as-admin" className="text-sm font-medium text-amber-100">
+                  Iniciar como admin
+                </Label>
+                <p className="text-xs text-amber-200/80">
+                  Solo con las credenciales Super Admin configuradas en el servidor.
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="login-as-admin"
+              checked={loginAsAdmin}
+              onCheckedChange={setLoginAsAdmin}
+              aria-label="Iniciar como admin"
+              className="scale-125 touch-manipulation data-[state=checked]:bg-amber-500"
+            />
+          </div>
+        )}
+
+        <Button
+          type="submit"
+          className="min-h-[48px] w-full bg-purple-600 text-white hover:bg-purple-700"
+          disabled={isLoading}
+        >
+          {isLoading
+            ? adminLoginEnabled
+              ? "Verificando admin…"
+              : "Iniciando sesión..."
+            : adminLoginEnabled
+              ? "Entrar como Super Admin"
+              : "Iniciar Sesión"}
         </Button>
 
         <div className="text-center">
-          <Link href="/forgot-password" className="text-sm text-purple-400 hover:text-purple-300 underline">
+          <Link href="/forgot-password" className="text-sm text-purple-400 underline hover:text-purple-300">
             ¿Olvidaste tu contraseña?
           </Link>
         </div>
-
       </form>
     </div>
   )

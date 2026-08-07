@@ -1,55 +1,79 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Star, ExternalLink } from "lucide-react"
+import { Star } from "lucide-react"
 import Link from "next/link"
-
-interface FeaturedContent {
-  id: string
-  title: string
-  description: string
-  imageUrl: string
-  linkUrl: string
-  isActive: boolean
-  priority: number
-  type: "announcement" | "promotion" | "event"
-}
+import {
+  fetchActiveFeaturedContent,
+  type FeaturedContent,
+} from "@/lib/featured-content"
 
 interface FeaturedBannerProps {
   content?: FeaturedContent[]
   showInProfile?: boolean
 }
 
-export function FeaturedBanner({ content = [], showInProfile = false }: FeaturedBannerProps) {
-  // Mock featured content - in real app this would come from API/database
-  const defaultContent: FeaturedContent[] = [
-    {
-      id: "1",
-      title: "🎵 Nueva Función: Playlists Colaborativas",
-      description: "Crea playlists con tus amigos y descubre nueva música juntos",
-      imageUrl: "/collaborative-playlists-music.jpg",
-      linkUrl: "/playlists/collaborative",
-      isActive: true,
-      priority: 1,
-      type: "announcement",
-    },
-    {
-      id: "2",
-      title: "🎤 Concurso de Talentos 2024",
-      description: "Participa en nuestro concurso anual y gana increíbles premios",
-      imageUrl: "/music-talent-contest-stage.jpg",
-      linkUrl: "/contest/2024",
-      isActive: true,
-      priority: 2,
-      type: "event",
-    },
-  ]
+function featuredHref(linkUrl?: string | null): string | null {
+  const href = (linkUrl || "").trim()
+  if (!href || href === "/") return null
+  return href
+}
 
-  const featuredItems = content.length > 0 ? content : defaultContent
-  const activeItems = featuredItems.filter((item) => item.isActive).sort((a, b) => a.priority - b.priority)
+export function FeaturedBanner({ content, showInProfile = false }: FeaturedBannerProps) {
+  const [items, setItems] = useState<FeaturedContent[]>(content ?? [])
+  const [loading, setLoading] = useState(!content)
 
-  if (activeItems.length === 0) return null
+  useEffect(() => {
+    if (content) {
+      setItems(content)
+      setLoading(false)
+      return
+    }
+    let cancelled = false
+    setLoading(true)
+    void fetchActiveFeaturedContent()
+      .then((rows) => {
+        if (!cancelled) setItems(rows)
+      })
+      .catch((err) => {
+        console.warn("[featured] load failed:", err)
+        if (!cancelled) setItems([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [content])
+
+  const activeItems = items
+    .filter((item) => item.isActive)
+    .sort((a, b) => a.priority - b.priority)
+
+  if (loading) {
+    return showInProfile ? (
+      <div className="mb-6 rounded-lg border border-slate-700 bg-slate-800/40 p-4 text-sm text-slate-400">
+        Cargando contenido destacado…
+      </div>
+    ) : null
+  }
+
+  if (activeItems.length === 0) {
+    return showInProfile ? (
+      <div className="mb-6 rounded-lg border border-dashed border-slate-700 bg-slate-800/30 p-4">
+        <div className="mb-1 flex items-center gap-2 text-slate-300">
+          <Star className="h-4 w-4 text-yellow-400" />
+          <h3 className="text-sm font-semibold">Contenido Destacado</h3>
+        </div>
+        <p className="text-xs text-slate-500">
+          Aún no hay promociones activas. El Super Admin las publica desde el panel.
+        </p>
+      </div>
+    ) : null
+  }
 
   const getTypeColor = (type: string) => {
     switch (type) {
@@ -80,38 +104,55 @@ export function FeaturedBanner({ content = [], showInProfile = false }: Featured
   return (
     <div className={`space-y-4 ${showInProfile ? "mb-6" : "mb-8"}`}>
       {showInProfile && (
-        <div className="flex items-center gap-2 mb-4">
+        <div className="mb-4 flex items-center gap-2">
           <Star className="h-5 w-5 text-yellow-400" />
           <h3 className="text-lg font-semibold text-white">Contenido Destacado</h3>
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {activeItems.slice(0, showInProfile ? 2 : 4).map((item) => (
-          <Card key={item.id} className="bg-slate-800 border-slate-700 hover:bg-slate-750 transition-colors group">
-            <CardContent className="p-0">
-              <Link href={item.linkUrl} className="block">
-                <div className="relative">
-                  <img
-                    src={item.imageUrl || "/placeholder.svg"}
-                    alt={item.title}
-                    className="w-full h-32 object-cover rounded-t-lg"
-                  />
-                  <Badge className={`absolute top-2 left-2 ${getTypeColor(item.type)} text-white`}>
-                    {getTypeLabel(item.type)}
-                  </Badge>
-                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <ExternalLink className="h-4 w-4 text-white" />
-                  </div>
-                </div>
-                <div className="p-4">
-                  <h4 className="font-semibold text-white mb-2 line-clamp-1">{item.title}</h4>
-                  <p className="text-sm text-gray-400 line-clamp-2">{item.description}</p>
-                </div>
-              </Link>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {activeItems.slice(0, showInProfile ? 4 : 4).map((item) => {
+          const href = featuredHref(item.linkUrl)
+          const isExternal = !!href && href.startsWith("http")
+          const body = (
+            <>
+              <div className="relative">
+                <img
+                  src={item.imageUrl || "/placeholder.svg"}
+                  alt={item.title}
+                  className="h-32 w-full rounded-t-lg object-cover"
+                  onError={(e) => {
+                    ;(e.target as HTMLImageElement).src = "/placeholder.svg"
+                  }}
+                />
+                <Badge className={`absolute left-2 top-2 ${getTypeColor(item.type)} text-white`}>
+                  {getTypeLabel(item.type)}
+                </Badge>
+              </div>
+              <div className="p-4">
+                <h4 className="mb-2 line-clamp-1 font-semibold text-white">{item.title}</h4>
+                <p className="line-clamp-2 text-sm text-gray-400">{item.description}</p>
+              </div>
+            </>
+          )
+          return (
+            <Card key={item.id} className="border-slate-700 bg-slate-800">
+              <CardContent className="p-0">
+                {href ? (
+                  <Link
+                    href={href}
+                    className="block"
+                    {...(isExternal ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                  >
+                    {body}
+                  </Link>
+                ) : (
+                  <div>{body}</div>
+                )}
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
     </div>
   )

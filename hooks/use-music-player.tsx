@@ -69,23 +69,31 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
 
   const playTrack = useCallback(
     (track: Track, playlist?: Track[]) => {
-      console.log("[v0] Playing track:", track.title)
       setCurrentTrack(track)
       setIsPlaying(true)
       addToHistory(track)
 
-      if (playlist) {
+      if (playlist && playlist.length > 0) {
         const trackIndex = playlist.findIndex((t) => t.id === track.id)
         setQueueState(playlist)
         setOriginalQueue(playlist)
         setCurrentIndex(trackIndex >= 0 ? trackIndex : 0)
-      } else if (queue.length === 0) {
-        setQueueState([track])
+        return
+      }
+
+      // No playlist passed: jump to track in existing queue, or replace queue with this track
+      setQueueState((prev) => {
+        const idx = prev.findIndex((t) => t.id === track.id)
+        if (idx >= 0) {
+          setCurrentIndex(idx)
+          return prev
+        }
         setOriginalQueue([track])
         setCurrentIndex(0)
-      }
+        return [track]
+      })
     },
-    [queue.length, addToHistory],
+    [addToHistory],
   )
 
   const playPause = useCallback(() => {
@@ -110,17 +118,20 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    const nextTrack = queue[nextIndex]
-    if (nextTrack) {
-      console.log("[v0] Next track:", nextTrack.title)
-      setCurrentTrack(nextTrack)
+    const upcoming = queue[nextIndex]
+    if (upcoming) {
+      setCurrentTrack(upcoming)
       setCurrentIndex(nextIndex)
-      addToHistory(nextTrack)
+      setIsPlaying(true)
+      addToHistory(upcoming)
     }
   }, [queue, currentIndex, repeatMode, addToHistory])
 
   const previousTrack = useCallback(() => {
     if (queue.length === 0) return
+
+    // If more than 3s in, restart current track
+    // (actual seek is handled by player; here we only change track index)
 
     let prevIndex = currentIndex - 1
 
@@ -132,12 +143,12 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    const prevTrack = queue[prevIndex]
-    if (prevTrack) {
-      console.log("[v0] Previous track:", prevTrack.title)
-      setCurrentTrack(prevTrack)
+    const previous = queue[prevIndex]
+    if (previous) {
+      setCurrentTrack(previous)
       setCurrentIndex(prevIndex)
-      addToHistory(prevTrack)
+      setIsPlaying(true)
+      addToHistory(previous)
     }
   }, [queue, currentIndex, repeatMode, addToHistory])
 

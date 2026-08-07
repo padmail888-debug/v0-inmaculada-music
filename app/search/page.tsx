@@ -12,6 +12,7 @@ import { AppShell } from "@/components/layout/app-shell"
 import { getSupabase } from "@/lib/supabase/client"
 import { useMusicPlayer } from "@/hooks/use-music-player"
 import { emitNotificationEvent } from "@/lib/notification-client"
+import { AddToPlaylistButton } from "@/components/playlists/add-to-playlist-button"
 
 interface SearchResult {
   id: string
@@ -417,21 +418,27 @@ export default function SearchPage() {
                               )}
                             </div>
 
-                            <div className="flex items-center gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
+                            <div className="flex shrink-0 items-center gap-1 sm:gap-2">
                               {result.type === "song" && (
                                 <>
+                                  <AddToPlaylistButton
+                                    songId={result.id}
+                                    songTitle={result.title}
+                                    variant="labeled"
+                                    className="min-h-[44px] shrink-0 border-purple-500/50 px-2 text-purple-200 hover:bg-purple-900/40 hover:text-purple-100 sm:px-3"
+                                  />
                                   <Button
                                     size="sm"
                                     variant="ghost"
                                     className="text-slate-400 hover:text-white"
                                     disabled={!canPlayResult(result)}
+                                    title="Añadir a la cola"
                                     onClick={() => {
                                       if (!canPlayResult(result)) return
-                                      const track = buildTrackForPlayer(result)
-                                      addToQueue(track)
+                                      addToQueue(buildTrackForPlayer(result))
                                     }}
                                   >
-                                    <Plus className="w-4 h-4" />
+                                    <Plus className="h-4 w-4" />
                                   </Button>
                                   <Button
                                     size="sm"
@@ -443,7 +450,7 @@ export default function SearchPage() {
                                       playTrack(track)
                                     }}
                                   >
-                                    <Play className="w-4 h-4" />
+                                    <Play className="h-4 w-4" />
                                   </Button>
                                 </>
                               )}

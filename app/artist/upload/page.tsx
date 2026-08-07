@@ -12,8 +12,8 @@ import { Upload, Music, ImageIcon, X, CheckCircle, AlertCircle } from "lucide-re
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
+import { useAdminSettings } from "@/hooks/use-admin-settings"
 import { getSupabase } from "@/lib/supabase/client"
-import { emitNotificationEvent } from "@/lib/notification-client"
 import { ArtistShell } from "@/components/layout/artist-shell"
 
 interface UploadForm {
@@ -31,6 +31,7 @@ interface UploadForm {
 export default function UploadMusicPage() {
   const router = useRouter()
   const { user } = useAuth()
+  const { settings, loading: settingsLoading } = useAdminSettings()
   const [artistId, setArtistId] = useState<string | null>(null)
   const [artistLoading, setArtistLoading] = useState(true)
   const [form, setForm] = useState<UploadForm>({
@@ -176,6 +177,10 @@ export default function UploadMusicPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitError(null)
+    if (!settings.contentUpload) {
+      setSubmitError("Las subidas de contenido están temporalmente desactivadas por el administrador.")
+      return
+    }
     if (!user?.id) {
       setSubmitError("Debes iniciar sesión para subir una canción.")
       return
@@ -221,7 +226,6 @@ export default function UploadMusicPage() {
       }
 
       let albumId: string | null = null
-      let albumWasCreated = false
       const albumTitle = form.album.trim()
       if (albumTitle) {
         const { data: existing } = await supabase
@@ -241,7 +245,6 @@ export default function UploadMusicPage() {
             .single()
           if (!albumErr && created?.id) {
             albumId = created.id
-            albumWasCreated = true
           }
         }
       }
@@ -256,42 +259,19 @@ export default function UploadMusicPage() {
       if (albumId) insertPayload.album_id = albumId
       if (form.releaseDate) insertPayload.release_date = form.releaseDate
 
-      const { error: insertErr } = await supabase.from("songs").insert(insertPayload)
-      if (insertErr) {
-        setSubmitError("Error al guardar la canción: " + insertErr.message)
+      const { data: insertedSong, error: insertErr } = await supabase
+        .from("songs")
+        .insert(insertPayload)
+        .select("id")
+        .single()
+
+      if (insertErr || !insertedSong?.id) {
+        setSubmitError("Error al guardar la canción: " + (insertErr?.message || "sin ID"))
         setUploading(false)
         return
       }
 
-      // Emit release notifications for followers
-      if (artistId) {
-        if (albumWasCreated && albumId && albumTitle) {
-          void emitNotificationEvent("new_album_release", {
-            artistId,
-            albumId,
-            albumTitle,
-          })
-        }
-        // New song release (always)
-        // Fetch inserted song id by title + artist fallback to latest row
-        const { data: latestSong } = await supabase
-          .from("songs")
-          .select("id")
-          .eq("artist_id", artistId)
-          .eq("title", form.title.trim())
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle()
-
-        if (latestSong?.id) {
-          void emitNotificationEvent("new_song_release", {
-            artistId,
-            songId: latestSong.id,
-            songTitle: form.title.trim(),
-          })
-        }
-      }
-
+      // Songs stay unpublished until a Super Admin approves them.
       setUploaded(true)
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Error al subir la canción.")
@@ -326,6 +306,29 @@ export default function UploadMusicPage() {
     setSubmitError(null)
   }, [])
 
+  if (!settingsLoading && !settings.contentUpload) {
+    return (
+      <ArtistShell>
+        <div className="flex min-h-[50vh] items-center justify-center px-4">
+          <Card className="w-full max-w-md border-slate-700 bg-slate-800/50 backdrop-blur-sm">
+            <CardContent className="p-8 text-center">
+              <AlertCircle className="mx-auto mb-4 h-16 w-16 text-amber-400" />
+              <h2 className="mb-2 text-2xl font-bold text-white">Subidas desactivadas</h2>
+              <p className="mb-6 text-slate-300">
+                El administrador ha desactivado temporalmente la subida de contenido.
+              </p>
+              <Link href="/artist/profile">
+                <Button type="button" className="w-full bg-purple-600 hover:bg-purple-700">
+                  Volver al perfil
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+      </ArtistShell>
+    )
+  }
+
   if (uploaded) {
     return (
       <ArtistShell>
@@ -335,7 +338,8 @@ export default function UploadMusicPage() {
             <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-white mb-2">¡Subida exitosa!</h2>
             <p className="text-slate-300 mb-6">
-              Tu canción "{form.title}" ha sido subida correctamente y está siendo procesada.
+              Tu canción &quot;{form.title}&quot; se subió correctamente y está pendiente de revisión. Un administrador
+              debe publicarla antes de que aparezca en Buscar y el catálogo.
             </p>
             <div className="space-y-2">
               <Link href="/artist/profile">
@@ -682,7 +686,7 @@ export default function UploadMusicPage() {
               disabled={!audioFile || !form.title.trim() || uploading || !!fileError}
               className="bg-purple-600 hover:bg-purple-700 flex-1 min-h-[44px]"
             >
-              {uploading ? "Subiendo…" : "Publicar Canción"}
+              {uploading ? "Subiendo…" : "Subir Canción"}
             </Button>
             <Button
               type="button"

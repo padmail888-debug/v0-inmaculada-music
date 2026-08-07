@@ -18,8 +18,11 @@
     "cap:android": "npx cap open android",
     "cap:ios": "npx cap open ios",
     "build:clean": "rm -rf .next && npm run build",
-    "cap:build:android": "rm -rf .next && npm run build && npx cap sync android",
+    "verify:push": "node scripts/verify-push.mjs",
+    "test:push": "node scripts/send-test-push.mjs",
+    "cap:build:android:prod": "rm -rf .next && npm run build && npx cap sync android",
     "cap:build:android:dev": "rm -rf .next && npm run native-api-config && npm run build && npx cap sync android",
+    "cap:build:android": "npm run cap:build:android:prod",
     "cap:build:ios": "rm -rf .next && npm run build && npx cap sync ios"
   },
   "dependencies": {

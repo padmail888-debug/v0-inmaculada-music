@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
+import { useAdminSettings } from "@/hooks/use-admin-settings"
 import { getSupabase } from "@/lib/supabase/client"
 import { getPostLoginPath, resolveUserRoleFromAuthUser } from "@/lib/user-role"
 
@@ -23,6 +24,9 @@ export function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { login } = useAuth()
+  const { settings, loading: settingsLoading } = useAdminSettings()
+
+  const registrationClosed = !settingsLoading && !settings.userRegistration
 
   const preselectedPlan = searchParams.get("plan")
   useEffect(() => {
@@ -33,6 +37,11 @@ export function RegisterForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!settings.userRegistration) {
+      alert("El registro de nuevos usuarios está temporalmente cerrado.")
+      return
+    }
 
     if (formData.password !== formData.confirmPassword) {
       alert("Las contraseñas no coinciden")
@@ -104,6 +113,12 @@ export function RegisterForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {registrationClosed && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100">
+          El registro de nuevas cuentas está cerrado por el administrador.
+        </div>
+      )}
+
       <div className="space-y-2">
         <Label htmlFor="name" className="text-white">
           Nombre completo
@@ -114,6 +129,7 @@ export function RegisterForm() {
           value={formData.name}
           onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
           required
+          disabled={registrationClosed}
           className="bg-black/30 border-white/20 text-white placeholder:text-gray-400"
           placeholder="Tu nombre"
         />
@@ -129,6 +145,7 @@ export function RegisterForm() {
           value={formData.email}
           onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
           required
+          disabled={registrationClosed}
           className="bg-black/30 border-white/20 text-white placeholder:text-gray-400"
           placeholder="tu@email.com"
         />
@@ -144,6 +161,7 @@ export function RegisterForm() {
           value={formData.password}
           onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
           required
+          disabled={registrationClosed}
           className="bg-black/30 border-white/20 text-white placeholder:text-gray-400"
           placeholder="••••••••"
         />
@@ -159,6 +177,7 @@ export function RegisterForm() {
           value={formData.confirmPassword}
           onChange={(e) => setFormData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
           required
+          disabled={registrationClosed}
           className="bg-black/30 border-white/20 text-white placeholder:text-gray-400"
           placeholder="••••••••"
         />
@@ -171,6 +190,7 @@ export function RegisterForm() {
         <select
           id="role"
           value={formData.role}
+          disabled={registrationClosed}
           onChange={(e) =>
             setFormData((prev) => ({
               ...prev,
@@ -180,13 +200,23 @@ export function RegisterForm() {
           className="w-full rounded-md bg-black/30 border border-white/20 text-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
         >
           <option value="free">Usuario Gratuito</option>
-          <option value="premium">Usuario Premium ($9.99/mes)</option>
+          <option value="premium">
+            Usuario Premium (${settings.premiumPrice.toFixed(2)}/mes)
+          </option>
           <option value="artist">Artista</option>
         </select>
       </div>
 
-      <Button type="submit" className="w-full bg-purple-600 hover:bg-purple-700 text-white" disabled={isLoading}>
-        {isLoading ? "Creando cuenta..." : "Crear Cuenta"}
+      <Button
+        type="submit"
+        className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+        disabled={isLoading || registrationClosed || settingsLoading}
+      >
+        {isLoading
+          ? "Creando cuenta..."
+          : registrationClosed
+            ? "Registro cerrado"
+            : "Crear Cuenta"}
       </Button>
     </form>
   )

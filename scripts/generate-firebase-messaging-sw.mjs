@@ -37,9 +37,14 @@ const firebaseConfig = {
 }
 
 if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-  console.warn(
-    "[generate-firebase-messaging-sw] Missing Firebase env vars; writing minimal service worker.",
-  )
+  const onVercel = process.env.VERCEL === "1" || process.env.VERCEL === "true"
+  const message =
+    "[generate-firebase-messaging-sw] Missing NEXT_PUBLIC_FIREBASE_* env vars — web push will not work."
+  if (onVercel) {
+    console.error(`${message} Set them in Vercel → Project → Environment Variables, then redeploy.`)
+    process.exit(1)
+  }
+  console.warn(`${message} Writing minimal service worker.`)
 }
 
 const sw = `/* Auto-generated — do not edit. Run: npm run generate:firebase-sw */

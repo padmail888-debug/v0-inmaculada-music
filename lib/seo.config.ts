@@ -1,19 +1,23 @@
+import { getSiteUrl } from "@/lib/site-url"
+
+const siteUrl = getSiteUrl()
+
 export const defaultSEO = {
   title: "Inmaculada Music - Tu música, en cualquier lugar",
   description:
     "Plataforma de streaming musical con millones de canciones. Crea playlists personalizadas, descubre nuevos artistas y disfruta de música sin límites. Modo offline disponible.",
-  canonical: "https://inmaculadamusic.com",
+  canonical: siteUrl,
   openGraph: {
     type: "website",
     locale: "es_ES",
-    url: "https://inmaculadamusic.com",
+    url: siteUrl,
     site_name: "Inmaculada Music",
     title: "Inmaculada Music - Streaming Musical Sin Límites",
     description:
       "Descubre, escucha y comparte música con la mejor plataforma de streaming. Artistas independientes, playlists personalizadas y modo offline.",
     images: [
       {
-        url: "https://inmaculadamusic.com/og-image.jpg",
+        url: `${siteUrl}/og-image.jpg`,
         width: 1200,
         height: 630,
         alt: "Inmaculada Music - Plataforma de Streaming Musical",

@@ -1,5 +1,6 @@
 import { Capacitor } from "@capacitor/core"
 import { getCachedResolvedApiBase } from "@/lib/native-api-resolver"
+import { getSiteUrl } from "@/lib/site-url"
 
 /**
  * True when the bundle runs inside Capacitor iOS/Android. Prefer `@capacitor/core`
@@ -60,8 +61,7 @@ export function getApiBase(): string {
   if (!shouldUseRemoteApiBase()) return ""
   const cached = getCachedResolvedApiBase()
   if (cached) return cached
-  const url = process.env.NEXT_PUBLIC_APP_URL || ""
-  return url.replace(/\/$/, "")
+  return getSiteUrl()
 }
 
 let warnedMissingNativeBackend = false
@@ -79,7 +79,7 @@ export function resolveApiUrl(pathStartingWithSlash: string): string | null {
   if (!base || !/^https?:\/\//i.test(base)) {
     if (!warnedMissingNativeBackend) {
       warnedMissingNativeBackend = true
-      const raw = (process.env.NEXT_PUBLIC_APP_URL || "").trim()
+      const raw = (process.env.NEXT_PUBLIC_APP_URL || getSiteUrl()).trim()
       console.error(
         "[api] Android/iOS builds need a reachable API URL (set NEXT_PUBLIC_APP_URL at build, or let auto-discovery find dev:lan).",
         "Current:",

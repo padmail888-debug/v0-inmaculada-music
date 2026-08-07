@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { getSiteUrl } from "@/lib/site-url"
 
 interface PageSEOProps {
   title: string
@@ -16,7 +17,7 @@ export function generatePageMetadata({
   noindex = false,
 }: PageSEOProps): Metadata {
   const fullTitle = `${title} | Inmaculada Music`
-  const url = `https://inmaculadamusic.com${path}`
+  const url = `${getSiteUrl()}${path}`
 
   return {
     title: fullTitle,

@@ -18,7 +18,6 @@ import {
   Settings,
   Play,
   Heart,
-  Share2,
   Pencil,
   Calendar,
   MapPin,
@@ -246,7 +245,7 @@ export default function ArtistProfilePage() {
 
         const { data: songsData, error: songsErr } = await supabase
           .from("songs")
-          .select("id, title, duration, cover_image, created_at, album_id, audio_file_url")
+          .select("id, title, duration, cover_image, created_at, album_id, audio_file_url, is_published")
           .eq("artist_id", artist.id)
           .order("created_at", { ascending: false })
 
@@ -279,7 +278,13 @@ export default function ArtistProfilePage() {
             })
           }
           const tracksList: ArtistTrack[] = (songsData || []).map((s) => {
-            const row = s as { album_id?: string; created_at?: string; cover_image?: string; audio_file_url?: string }
+            const row = s as {
+              album_id?: string
+              created_at?: string
+              cover_image?: string
+              audio_file_url?: string
+              is_published?: boolean
+            }
             const albumId = row.album_id
             return {
               id: s.id,
@@ -289,7 +294,7 @@ export default function ArtistProfilePage() {
               plays: playsMap[s.id] || 0,
               likes: likesMap[s.id] || 0,
               uploadDate: row.created_at?.slice(0, 10) || "",
-              status: "published" as const,
+              status: row.is_published === false ? ("pending" as const) : ("published" as const),
               cover_image: row.cover_image,
               audioUrl: row.audio_file_url || null,
             }
@@ -347,8 +352,8 @@ export default function ArtistProfilePage() {
 
   const formatDuration = (seconds: number) => {
     const minutes = Math.floor(seconds / 60)
-    const remainingSeconds = seconds % 60
-    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`
+    const secs = Math.floor(seconds % 60)
+    return `${minutes}:${secs.toString().padStart(2, "0")}`
   }
 
   const getStatusColor = (status: string) => {
@@ -781,27 +786,9 @@ END:VCALENDAR`
                           {track.status === "published"
                             ? "Publicado"
                             : track.status === "pending"
-                              ? "Pendiente"
+                              ? "Pendiente de revisión"
                               : "Borrador"}
                         </Badge>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="text-slate-400 hover:bg-slate-700 min-h-[40px] min-w-[40px]"
-                          onClick={() => {
-                            const url = typeof window !== "undefined" ? `${window.location.origin}/artist?track=${encodeURIComponent(track.id)}` : ""
-                            if (typeof navigator !== "undefined" && navigator.share) {
-                              navigator.share({ title: track.title, url }).catch(() => {
-                                if (url) navigator.clipboard?.writeText(url)
-                              })
-                            } else if (url) {
-                              navigator.clipboard?.writeText(url).then(() => {})
-                            }
-                          }}
-                        >
-                          <Share2 className="w-4 h-4" />
-                        </Button>
                       </div>
                     </div>
                   </CardContent>

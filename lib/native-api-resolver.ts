@@ -26,6 +26,7 @@ let probePromise: Promise<string | null> | null = null
 
 type NativeApiConfigFile = {
   lanApiBase?: string | null
+  productionAppUrl?: string | null
 }
 
 function normalizeBase(url: string): string {
@@ -151,8 +152,26 @@ function loopbackAlternatives(base: string): string[] {
   }
 }
 
+function candidatePriority(base: string): number {
+  try {
+    const host = new URL(base).hostname.toLowerCase()
+    if (host === "localhost" || host === "127.0.0.1" || host === "10.0.2.2") return 0
+    if (
+      /^192\.168\./.test(host) ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
+      (/^10\./.test(host) && host !== "10.0.2.2")
+    ) {
+      return 1
+    }
+    return 2
+  } catch {
+    return 3
+  }
+}
+
 async function buildCandidateBases(): Promise<string[]> {
   const seen = new Set<string>()
+  const ordered: string[] = []
   const add = (url: string | null | undefined) => {
     if (!url || !isValidHttpUrl(url)) return
     const n = normalizeBase(url)
@@ -162,17 +181,26 @@ async function buildCandidateBases(): Promise<string[]> {
     }
   }
 
-  const ordered: string[] = []
-
+  const config = await loadNativeApiConfig()
   const baked = bakedEnvBase()
-  // Prefer adb-reverse / emulator loopback before stale LAN cache
+  const production = config?.productionAppUrl ?? baked
+
+  // 1) Local dev: adb reverse / emulator loopback
   if (baked) {
-    add(baked)
     for (const alt of loopbackAlternatives(baked)) add(alt)
   }
+  for (const port of DEV_PORTS) {
+    if (Capacitor.getPlatform() === "android") add(`http://10.0.2.2:${port}`)
+    add(`http://127.0.0.1:${port}`)
+    add(`http://localhost:${port}`)
+  }
 
-  const config = await loadNativeApiConfig()
+  // 2) LAN IP from build-time native-api-config.json (npm run dev:lan)
   add(config?.lanApiBase ?? null)
+
+  // 3) Production Vercel API (works when phone is not on same Wi‑Fi as dev machine)
+  add(production)
+  if (baked && baked !== production) add(baked)
 
   add(getCachedResolvedApiBase())
 
@@ -226,17 +254,8 @@ export async function resolveNativeApiBase(): Promise<string | null> {
     const candidates = await buildCandidateBases()
     if (candidates.length === 0) return null
 
-    // Try loopback hosts first (adb reverse / emulator), then LAN — stops a dead LAN cache from blocking USB dev
-    const priority = (base: string) => {
-      try {
-        const h = new URL(base).hostname.toLowerCase()
-        if (h === "localhost" || h === "127.0.0.1" || h === "10.0.2.2") return 0
-        return 1
-      } catch {
-        return 2
-      }
-    }
-    const sorted = [...candidates].sort((a, b) => priority(a) - priority(b))
+    // Try local dev hosts (loopback, LAN) before production Vercel
+    const sorted = [...candidates].sort((a, b) => candidatePriority(a) - candidatePriority(b))
 
     let winner: { base: string; ok: boolean } | undefined
     for (const base of sorted) {

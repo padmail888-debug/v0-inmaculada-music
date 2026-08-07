@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { useAuth } from "@/hooks/use-auth"
 import { useOffline } from "@/hooks/use-offline"
 import { useMusicPlayer } from "@/hooks/use-music-player"
+import { recordSongPlay } from "@/lib/record-play"
 
 interface Track {
   id: string
@@ -38,12 +39,15 @@ export function MusicPlayer() {
   } = useMusicPlayer()
 
   const audioRef = useRef<HTMLAudioElement>(null)
+  const objectUrlRef = useRef<string | null>(null)
+  const recordedPlayForTrackRef = useRef<string | null>(null)
   const [currentTime, setCurrentTime] = useState(0)
   const [volume, setVolume] = useState(70)
   const [isDownloaded, setIsDownloaded] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
   const [audioSrc, setAudioSrc] = useState<string>("")
   const [showLyrics, setShowLyrics] = useState(false) // Added state for lyrics modal
+  const [mediaReadyKey, setMediaReadyKey] = useState(0)
 
   const mockLyrics = {
     "1": `Verse 1:
@@ -163,66 +167,165 @@ Makes my weary spirit float`,
     return mockLyrics[currentTrack?.id as keyof typeof mockLyrics] || "Letras no disponibles para esta canción."
   }
 
+  // Resolve audio URL whenever the track changes (online or offline blob).
   useEffect(() => {
-    if (!currentTrack) return
+    if (!currentTrack) {
+      setAudioSrc("")
+      setCurrentTime(0)
+      return
+    }
 
-    const checkDownloadStatus = async () => {
-      const downloaded = await isTrackDownloaded(currentTrack.id)
-      setIsDownloaded(downloaded)
+    const trackId = currentTrack.id
+    const trackUrl = currentTrack.audioUrl
+    let cancelled = false
+    setCurrentTime(0)
+    // Clear immediately so we don't keep playing the previous song while the new URL resolves
+    setAudioSrc("")
 
-      if (downloaded) {
-        const offlineTrack = await getOfflineTrack(currentTrack.id)
-        if (offlineTrack) {
-          const audioUrl = URL.createObjectURL(offlineTrack.audioBlob)
-          setAudioSrc(audioUrl)
-          console.log("[v0] Using offline audio for:", currentTrack.title)
+    const resolveSrc = async () => {
+      try {
+        const downloaded = await isTrackDownloaded(trackId)
+        if (cancelled) return
+        setIsDownloaded(downloaded)
+
+        if (objectUrlRef.current) {
+          URL.revokeObjectURL(objectUrlRef.current)
+          objectUrlRef.current = null
         }
-      } else if (isOnline) {
-        const validAudioUrl = currentTrack.audioUrl || "/placeholder-audio.mp3"
-        setAudioSrc(validAudioUrl)
-        console.log("[v0] Using online audio for:", currentTrack.title)
-      } else {
-        console.log("[v0] Track not available offline:", currentTrack.title)
-        setAudioSrc("")
+
+        if (downloaded) {
+          const offlineTrack = await getOfflineTrack(trackId)
+          if (cancelled) return
+          if (offlineTrack?.audioBlob) {
+            const blobUrl = URL.createObjectURL(offlineTrack.audioBlob)
+            objectUrlRef.current = blobUrl
+            setAudioSrc(blobUrl)
+            return
+          }
+        }
+
+        if (isOnline && trackUrl) {
+          setAudioSrc(trackUrl)
+        } else {
+          setAudioSrc("")
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.warn("[player] failed to resolve audio src:", err)
+          setAudioSrc(isOnline && trackUrl ? trackUrl : "")
+        }
       }
     }
 
-    checkDownloadStatus()
-  }, [currentTrack, isTrackDownloaded, getOfflineTrack, isOnline])
+    void resolveSrc()
 
+    return () => {
+      cancelled = true
+    }
+    // Intentionally only re-run when the track identity / URL / online status changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTrack?.id, currentTrack?.audioUrl, isOnline])
+
+  // Wire audio element events
   useEffect(() => {
     const audio = audioRef.current
-    if (!audio || !currentTrack) return
+    if (!audio) return
 
     const updateTime = () => setCurrentTime(audio.currentTime)
     const handleEnded = () => {
       if (repeatMode === "one") {
         audio.currentTime = 0
-        audio.play()
+        void audio.play().catch(() => {})
       } else {
         nextTrack()
       }
     }
+    const handleLoaded = () => setMediaReadyKey((k) => k + 1)
+    const handleError = () => {
+      console.warn("[player] audio error for", currentTrack?.title, audio.error)
+    }
 
     audio.addEventListener("timeupdate", updateTime)
     audio.addEventListener("ended", handleEnded)
+    audio.addEventListener("loadeddata", handleLoaded)
+    audio.addEventListener("canplay", handleLoaded)
+    audio.addEventListener("error", handleError)
 
     return () => {
       audio.removeEventListener("timeupdate", updateTime)
       audio.removeEventListener("ended", handleEnded)
+      audio.removeEventListener("loadeddata", handleLoaded)
+      audio.removeEventListener("canplay", handleLoaded)
+      audio.removeEventListener("error", handleError)
     }
-  }, [currentTrack, nextTrack, repeatMode])
+  }, [currentTrack?.id, nextTrack, repeatMode])
 
+  // Load new source when audioSrc changes
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
 
-    if (isPlaying) {
-      audio.play()
-    } else {
-      audio.pause()
+    if (!audioSrc) {
+      audio.removeAttribute("src")
+      audio.load()
+      return
     }
-  }, [isPlaying])
+
+    // Always assign + load so switching tracks restarts from the new file
+    audio.src = audioSrc
+    audio.load()
+    setCurrentTime(0)
+  }, [audioSrc])
+
+  // Play / pause — must re-run when track or source changes, not only when isPlaying flips.
+  // Bug: selecting a second song while already playing left isPlaying=true, so play() never ran again.
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio || !audioSrc) return
+
+    if (!isPlaying) {
+      audio.pause()
+      return
+    }
+
+    const tryPlay = () => {
+      const playPromise = audio.play()
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          // AbortError is normal when a newer play() interrupts the previous one
+          if (err?.name !== "AbortError") {
+            console.warn("[player] play() failed:", err)
+          }
+        })
+      }
+    }
+
+    if (audio.readyState >= 2) {
+      tryPlay()
+    } else {
+      const onReady = () => {
+        audio.removeEventListener("canplay", onReady)
+        tryPlay()
+      }
+      audio.addEventListener("canplay", onReady)
+      return () => audio.removeEventListener("canplay", onReady)
+    }
+  }, [isPlaying, audioSrc, currentTrack?.id, mediaReadyKey])
+
+  // Record one play per track after a few seconds of listening (feeds admin analytics).
+  useEffect(() => {
+    if (!currentTrack?.id || !isPlaying || !audioSrc) return
+    if (recordedPlayForTrackRef.current === currentTrack.id) return
+
+    const songId = currentTrack.id
+    const timer = window.setTimeout(() => {
+      if (recordedPlayForTrackRef.current === songId) return
+      recordedPlayForTrackRef.current = songId
+      void recordSongPlay(songId, user?.id)
+    }, 5000)
+
+    return () => window.clearTimeout(timer)
+  }, [currentTrack?.id, isPlaying, audioSrc, user?.id])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -230,6 +333,16 @@ Makes my weary spirit float`,
       audio.volume = volume / 100
     }
   }, [volume])
+
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current)
+        objectUrlRef.current = null
+      }
+    }
+  }, [])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -282,7 +395,11 @@ Makes my weary spirit float`,
   return (
     <>
       <div className="h-20 bg-black/40 backdrop-blur-xl border-t border-white/10 flex items-center px-4">
-        <audio ref={audioRef} src={audioSrc && audioSrc.trim() !== "" ? audioSrc : null} />
+        <audio
+          ref={audioRef}
+          preload="auto"
+          src={audioSrc && audioSrc.trim() !== "" ? audioSrc : undefined}
+        />
 
         {!isOnline && (
           <div className="absolute top-2 left-4 bg-orange-500 text-white text-xs px-2 py-1 rounded-full">

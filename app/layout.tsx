@@ -4,6 +4,9 @@ import dynamic from "next/dynamic"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { AuthProvider } from "@/hooks/use-auth"
+import { getSiteUrl } from "@/lib/site-url"
+
+const siteUrl = getSiteUrl()
 
 const Analytics = dynamic(
   () => import("@vercel/analytics/next").then((m) => ({ default: m.Analytics })),
@@ -20,6 +23,7 @@ import { PushNotificationRegistrar } from "@/components/notifications/push-notif
 import { NativeApiBootstrap } from "@/components/mobile/native-api-bootstrap"
 import { NativeApiMisconfigBanner } from "@/components/mobile/native-api-misconfig-banner"
 import { NativeSafeArea } from "@/components/mobile/native-safe-area"
+import { MaintenanceBanner } from "@/components/layout/maintenance-banner"
 import "./globals.css"
 
 export const viewport: Viewport = {
@@ -42,7 +46,7 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL("https://your-actual-domain.com"),
+  metadataBase: new URL(siteUrl),
   alternates: {
     canonical: "/",
     languages: {
@@ -53,7 +57,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "es_ES",
-    url: "https://your-actual-domain.com",
+    url: siteUrl,
     siteName: "Inmaculada Music",
     title: "Inmaculada Music - Tu música, en cualquier lugar",
     description:
@@ -101,7 +105,7 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://api.inmaculadamusic.com" />
+        <link rel="dns-prefetch" href={siteUrl} />
         <meta name="theme-color" content="#1e293b" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -113,7 +117,7 @@ export default function RootLayout({
               "@type": "WebApplication",
               name: "Inmaculada Music",
               description: "Plataforma de streaming musical con modo offline y contenido exclusivo",
-              url: "https://inmaculadamusic.com",
+              url: siteUrl,
               applicationCategory: "MusicApplication",
               operatingSystem: "Web, iOS, Android",
               offers: {
@@ -137,6 +141,7 @@ export default function RootLayout({
                   <PushNotificationRegistrar />
                   <NativeSafeArea />
                   <NativeApiMisconfigBanner />
+                  <MaintenanceBanner />
                   {children}
                   <MusicPlayer />
                 </MusicPlayerProvider>

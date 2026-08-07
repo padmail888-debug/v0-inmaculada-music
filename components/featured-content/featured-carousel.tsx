@@ -1,69 +1,61 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Star, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react"
+import { Star, ChevronLeft, ChevronRight } from "lucide-react"
 import Link from "next/link"
-
-interface FeaturedContent {
-  id: string
-  title: string
-  description: string
-  imageUrl: string
-  linkUrl: string
-  isActive: boolean
-  priority: number
-  type: "announcement" | "promotion" | "event"
-}
+import {
+  fetchActiveFeaturedContent,
+  type FeaturedContent,
+} from "@/lib/featured-content"
 
 interface FeaturedCarouselProps {
   content?: FeaturedContent[]
   showInProfile?: boolean
 }
 
-export function FeaturedCarousel({ content = [], showInProfile = false }: FeaturedCarouselProps) {
+function featuredHref(linkUrl?: string | null): string | null {
+  const href = (linkUrl || "").trim()
+  if (!href || href === "/") return null
+  return href
+}
+
+export function FeaturedCarousel({ content, showInProfile = false }: FeaturedCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [items, setItems] = useState<FeaturedContent[]>(content ?? [])
+  const [loading, setLoading] = useState(!content)
 
-  // Mock featured content - in real app this would come from API/database
-  const defaultContent: FeaturedContent[] = [
-    {
-      id: "1",
-      title: "🎵 Nueva Función: Playlists Colaborativas",
-      description: "Crea playlists con tus amigos y descubre nueva música juntos",
-      imageUrl: "/collaborative-playlists-music.jpg",
-      linkUrl: "/playlists/collaborative",
-      isActive: true,
-      priority: 1,
-      type: "announcement",
-    },
-    {
-      id: "2",
-      title: "🎤 Concurso de Talentos 2024",
-      description: "Participa en nuestro concurso anual y gana increíbles premios",
-      imageUrl: "/music-talent-contest-stage.jpg",
-      linkUrl: "/contest/2024",
-      isActive: true,
-      priority: 2,
-      type: "event",
-    },
-    {
-      id: "3",
-      title: "🎧 Descuento Premium 50%",
-      description: "Obtén acceso premium con 50% de descuento por tiempo limitado",
-      imageUrl: "/premium-discount-headphones.jpg",
-      linkUrl: "/premium/offer",
-      isActive: true,
-      priority: 3,
-      type: "promotion",
-    },
-  ]
+  useEffect(() => {
+    if (content) {
+      setItems(content)
+      setLoading(false)
+      return
+    }
+    let cancelled = false
+    setLoading(true)
+    void fetchActiveFeaturedContent()
+      .then((rows) => {
+        if (!cancelled) setItems(rows)
+      })
+      .catch((err) => {
+        console.warn("[featured-carousel] load failed:", err)
+        if (!cancelled) setItems([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [content])
 
-  const featuredItems = content.length > 0 ? content : defaultContent
-  const activeItems = featuredItems.filter((item) => item.isActive).sort((a, b) => a.priority - b.priority)
+  const activeItems = items
+    .filter((item) => item.isActive)
+    .sort((a, b) => a.priority - b.priority)
 
-  if (activeItems.length === 0) return null
+  if (loading || activeItems.length === 0) return null
 
   const itemsPerPage = showInProfile ? 1 : 2
   const totalPages = Math.ceil(activeItems.length / itemsPerPage)
@@ -71,15 +63,11 @@ export function FeaturedCarousel({ content = [], showInProfile = false }: Featur
   const canGoNext = currentIndex < totalPages - 1
 
   const goToPrev = () => {
-    if (canGoPrev) {
-      setCurrentIndex(currentIndex - 1)
-    }
+    if (canGoPrev) setCurrentIndex(currentIndex - 1)
   }
 
   const goToNext = () => {
-    if (canGoNext) {
-      setCurrentIndex(currentIndex + 1)
-    }
+    if (canGoNext) setCurrentIndex(currentIndex + 1)
   }
 
   const getCurrentItems = () => {
@@ -128,7 +116,7 @@ export function FeaturedCarousel({ content = [], showInProfile = false }: Featur
               size="sm"
               onClick={goToPrev}
               disabled={!canGoPrev}
-              className="h-8 w-8 p-0 text-gray-400 hover:text-white disabled:opacity-30"
+              className="h-10 w-10 p-0 text-gray-400 hover:text-white disabled:opacity-30"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -140,7 +128,7 @@ export function FeaturedCarousel({ content = [], showInProfile = false }: Featur
               size="sm"
               onClick={goToNext}
               disabled={!canGoNext}
-              className="h-8 w-8 p-0 text-gray-400 hover:text-white disabled:opacity-30"
+              className="h-10 w-10 p-0 text-gray-400 hover:text-white disabled:opacity-30"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -149,42 +137,61 @@ export function FeaturedCarousel({ content = [], showInProfile = false }: Featur
       </div>
 
       <div className={`grid gap-4 ${showInProfile ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"}`}>
-        {getCurrentItems().map((item) => (
-          <Card key={item.id} className="bg-slate-800 border-slate-700 hover:bg-slate-750 transition-colors group">
-            <CardContent className="p-0">
-              <Link href={item.linkUrl} className="block">
-                <div className="relative">
-                  <img
-                    src={item.imageUrl || "/placeholder.svg"}
-                    alt={item.title}
-                    className="w-full h-32 object-cover rounded-t-lg"
-                  />
-                  <Badge className={`absolute top-2 left-2 ${getTypeColor(item.type)} text-white`}>
-                    {getTypeLabel(item.type)}
-                  </Badge>
-                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <ExternalLink className="h-4 w-4 text-white" />
-                  </div>
-                </div>
-                <div className="p-4">
-                  <h4 className="font-semibold text-white mb-2 line-clamp-1">{item.title}</h4>
-                  <p className="text-sm text-gray-400 line-clamp-2">{item.description}</p>
-                </div>
-              </Link>
-            </CardContent>
-          </Card>
-        ))}
+        {getCurrentItems().map((item) => {
+          const href = featuredHref(item.linkUrl)
+          const isExternal = !!href && href.startsWith("http")
+          const body = (
+            <>
+              <div className="relative">
+                <img
+                  src={item.imageUrl || "/placeholder.svg"}
+                  alt={item.title}
+                  className="h-32 w-full rounded-t-lg object-cover"
+                  onError={(e) => {
+                    ;(e.target as HTMLImageElement).src = "/placeholder.svg"
+                  }}
+                />
+                <Badge className={`absolute left-2 top-2 ${getTypeColor(item.type)} text-white`}>
+                  {getTypeLabel(item.type)}
+                </Badge>
+              </div>
+              <div className="p-4">
+                <h4 className="mb-2 line-clamp-1 font-semibold text-white">{item.title}</h4>
+                <p className="line-clamp-2 text-sm text-gray-400">{item.description}</p>
+              </div>
+            </>
+          )
+          return (
+            <Card key={item.id} className="border-slate-700 bg-slate-800">
+              <CardContent className="p-0">
+                {href ? (
+                  <Link
+                    href={href}
+                    className="block"
+                    {...(isExternal ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                  >
+                    {body}
+                  </Link>
+                ) : (
+                  <div>{body}</div>
+                )}
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
 
       {totalPages > 1 && (
-        <div className="flex justify-center gap-2 mt-4">
+        <div className="mt-4 flex justify-center gap-2">
           {Array.from({ length: totalPages }).map((_, index) => (
             <button
               key={index}
+              type="button"
               onClick={() => setCurrentIndex(index)}
-              className={`w-2 h-2 rounded-full transition-colors ${
+              className={`h-2 w-2 rounded-full transition-colors ${
                 index === currentIndex ? "bg-white" : "bg-gray-600"
               }`}
+              aria-label={`Ir a página ${index + 1}`}
             />
           ))}
         </div>
