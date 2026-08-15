@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Music, Users, Headphones, Download } from "lucide-react"
 import { PublicSiteHeader } from "@/components/layout/public-site-header"
+import { HomePricingCards } from "@/components/home/home-pricing-cards"
 
 export default function HomePage() {
   return (
@@ -12,23 +13,21 @@ export default function HomePage() {
       <PublicSiteHeader
         trailing={
           <>
-            <Link href="/login">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-white/10 min-h-[44px] px-3 text-sm sm:min-h-9 sm:text-base"
-              >
-                Iniciar Sesión
-              </Button>
-            </Link>
-            <Link href="/register">
-              <Button
-                size="sm"
-                className="bg-purple-600 hover:bg-purple-700 text-white min-h-[44px] px-3 text-sm sm:min-h-9 sm:text-base"
-              >
-                Registrarse
-              </Button>
-            </Link>
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="text-white hover:bg-white/10 min-h-[44px] px-3 text-sm sm:min-h-9 sm:text-base"
+            >
+              <Link href="/login">Iniciar Sesión</Link>
+            </Button>
+            <Button
+              asChild
+              size="sm"
+              className="bg-purple-600 hover:bg-purple-700 text-white min-h-[44px] px-3 text-sm sm:min-h-9 sm:text-base"
+            >
+              <Link href="/register">Registrarse</Link>
+            </Button>
           </>
         }
       />
@@ -46,23 +45,21 @@ export default function HomePage() {
                 Descubre millones de canciones, crea playlists personalizadas y disfruta de música sin límites
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/register">
-                  <Button
-                    size="lg"
-                    className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 text-lg w-full sm:w-auto"
-                  >
-                    Empezar Gratis
-                  </Button>
-                </Link>
-                <Link href="/login">
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="border-white/30 text-white hover:bg-white/10 bg-transparent px-8 py-3 text-lg w-full sm:w-auto"
-                  >
-                    Iniciar Sesión
-                  </Button>
-                </Link>
+                <Button
+                  asChild
+                  size="lg"
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 text-lg w-full sm:w-auto"
+                >
+                  <Link href="/register">Empezar Gratis</Link>
+                </Button>
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="border-white/30 text-white hover:bg-white/10 bg-transparent px-8 py-3 text-lg w-full sm:w-auto"
+                >
+                  <Link href="/login">Iniciar Sesión</Link>
+                </Button>
               </div>
             </div>
 
@@ -133,52 +130,7 @@ export default function HomePage() {
         </div>
 
         {/* Pricing */}
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-          <Card className="bg-black/40 border-white/20 backdrop-blur-sm">
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl text-white">Gratuito</CardTitle>
-              <CardDescription className="text-slate-100">Perfecto para empezar</CardDescription>
-            </CardHeader>
-            <CardContent className="text-center">
-              <div className="text-4xl font-bold text-white mb-4">$0</div>
-              <ul className="text-slate-100 space-y-2 mb-6">
-                <li>• Previews de 30 segundos</li>
-                <li>• Compra canciones individuales</li>
-                <li>• Playlists básicas</li>
-                <li>• Con anuncios</li>
-              </ul>
-              <Link href="/register">
-                <Button
-                  variant="outline"
-                  className="w-full border-white/20 text-white hover:bg-white/10 bg-transparent"
-                >
-                  Empezar Gratis
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-purple-600/30 to-blue-600/30 border-purple-400/50 backdrop-blur-sm">
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl text-white">Premium</CardTitle>
-              <CardDescription className="text-slate-100">Experiencia completa</CardDescription>
-            </CardHeader>
-            <CardContent className="text-center">
-              <div className="text-4xl font-bold text-white mb-4">
-                $9.99<span className="text-lg">/mes</span>
-              </div>
-              <ul className="text-slate-100 space-y-2 mb-6">
-                <li>• Acceso completo al catálogo</li>
-                <li>• Descargas offline ilimitadas</li>
-                <li>• Sin anuncios</li>
-                <li>• Calidad de audio superior</li>
-              </ul>
-              <Link href="/register?plan=premium">
-                <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white">Suscribirse</Button>
-              </Link>
-            </CardContent>
-          </Card>
-        </div>
+        <HomePricingCards />
       </main>
 
       {/* Footer */}
@@ -227,7 +179,7 @@ export default function HomePage() {
               <h3 className="text-white font-semibold mb-4">Producto</h3>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link href="/register" className="text-slate-300 hover:text-white transition-colors">
+                  <Link href="/subscription" className="text-slate-300 hover:text-white transition-colors">
                     Planes y Precios
                   </Link>
                 </li>
@@ -298,6 +250,11 @@ export default function HomePage() {
                 <li>
                   <Link href="/privacy" className="text-slate-300 hover:text-white transition-colors">
                     Política de Privacidad
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/delete-account" className="text-slate-300 hover:text-white transition-colors">
+                    Eliminar cuenta
                   </Link>
                 </li>
                 <li>

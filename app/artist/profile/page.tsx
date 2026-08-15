@@ -32,6 +32,7 @@ import { useRouter } from "next/navigation"
 import { useMusicPlayer } from "@/hooks/use-music-player"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getSupabase } from "@/lib/supabase/client"
+import Link from "next/link"
 
 interface ArtistTrack {
   id: string
@@ -1293,6 +1294,27 @@ END:VCALENDAR`
                     disabled={saveProfileLoading}
                   >
                     {saveProfileLoading ? "Guardando…" : "Guardar cambios"}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="border-red-900/50 bg-slate-800/50">
+                <CardHeader>
+                  <CardTitle className="text-red-400">Eliminar cuenta</CardTitle>
+                  <CardDescription className="text-slate-400">
+                    La eliminación se hace en una página web (también usada por la app), como pide Google Play.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button
+                    asChild
+                    type="button"
+                    className="bg-red-700 hover:bg-red-800 text-white min-h-[44px]"
+                  >
+                    <Link href="/delete-account">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Eliminar cuenta
+                    </Link>
                   </Button>
                 </CardContent>
               </Card>
