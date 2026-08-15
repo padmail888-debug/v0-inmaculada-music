@@ -93,6 +93,12 @@ export default function HelpPage() {
       answer:
         "Usa el menú de tres puntos en cualquier canción y selecciona 'Reportar'. Nuestro equipo revisará el contenido en 24-48 horas.",
     },
+    {
+      id: 9,
+      question: "¿Cómo elimino mi cuenta?",
+      answer:
+        "Ve a la página Eliminar cuenta (disponible en la web y en la app). Inicia sesión, escribe ELIMINAR o DELETE y confirma. La eliminación es inmediata y permanente.",
+    },
   ]
 
   const handleContactSubmit = (e: React.FormEvent) => {

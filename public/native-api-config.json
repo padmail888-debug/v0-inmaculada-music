@@ -1,5 +1,5 @@
 {
-  "lanApiBase": "http://192.168.0.134:3000",
+  "lanApiBase": "http://192.168.1.115:3000",
   "productionAppUrl": "https://v0-inmaculada-music-ochre.vercel.app",
-  "generatedAt": "2026-08-07T11:09:27.688Z"
+  "generatedAt": "2026-08-15T11:25:43.940Z"
 }

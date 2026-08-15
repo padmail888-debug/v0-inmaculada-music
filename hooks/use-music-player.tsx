@@ -37,6 +37,7 @@ interface MusicPlayerContextType {
   setQueue: (tracks: Track[], startIndex?: number) => void
   addToQueue: (track: Track) => void
   removeFromQueue: (index: number) => void
+  clearPlayback: () => void
 }
 
 const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(undefined)
@@ -213,6 +214,14 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     [currentIndex, nextTrack],
   )
 
+  const clearPlayback = useCallback(() => {
+    setCurrentTrack(null)
+    setIsPlaying(false)
+    setQueueState([])
+    setOriginalQueue([])
+    setCurrentIndex(0)
+  }, [])
+
   const value: MusicPlayerContextType = {
     currentTrack,
     isPlaying,
@@ -230,6 +239,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     setQueue,
     addToQueue,
     removeFromQueue,
+    clearPlayback,
   }
 
   return <MusicPlayerContext.Provider value={value}>{children}</MusicPlayerContext.Provider>

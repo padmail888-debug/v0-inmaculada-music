@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Capacitor } from "@capacitor/core"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -34,17 +34,35 @@ function isNativeApp() {
   }
 }
 
+function isIosDevice() {
+  try {
+    if (Capacitor.getPlatform() === "ios") return true
+  } catch {
+    /* ignore */
+  }
+  if (typeof navigator === "undefined") return false
+  const ua = navigator.userAgent || ""
+  if (/iPad|iPhone|iPod/i.test(ua)) return true
+  // iPadOS 13+ reports as Mac
+  return navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1
+}
+
 export function LoginForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loginAsAdmin, setLoginAsAdmin] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [showAppleLogin, setShowAppleLogin] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get("redirect")
   const { login, refreshUserFromSupabase } = useAuth()
   const allowAdminLogin = !isNativeApp()
   const adminLoginEnabled = allowAdminLogin && loginAsAdmin
+
+  useEffect(() => {
+    setShowAppleLogin(isIosDevice())
+  }, [])
 
   async function getFreshAccessTokenWithRetry() {
     const supabase = getSupabase()
@@ -253,6 +271,7 @@ export function LoginForm() {
           Continuar con Google
         </Button>
 
+        {showAppleLogin && (
         <Button
           type="button"
           variant="outline"
@@ -265,6 +284,7 @@ export function LoginForm() {
           </svg>
           Continuar con Apple
         </Button>
+        )}
 
         <Button
           type="button"
