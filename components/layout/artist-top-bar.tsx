@@ -3,6 +3,7 @@
 import { Bell, LogOut, Music, Upload, User, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
+import { useMusicPlayer } from "@/hooks/use-music-player"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
@@ -11,6 +12,7 @@ import { useEffect, useRef, useState } from "react"
 import { useNotificationInboxPreview } from "@/hooks/use-notification-inbox-preview"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import type { UserRole } from "@/lib/auth-types"
+import { clearBodyScrollLocks } from "@/lib/clear-body-scroll-locks"
 
 function formatRoleLabel(role: UserRole | undefined): string {
   switch (role) {
@@ -54,11 +56,13 @@ const sheetNavClass = (active: boolean) =>
 
 export function ArtistTopBar() {
   const { user, logout } = useAuth()
+  const { clearPlayback } = useMusicPlayer()
   const pathname = usePathname()
   const router = useRouter()
   const menuRef = useRef<HTMLDivElement>(null)
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const { unreadCount, liveBanner } = useNotificationInboxPreview(user?.id, "artist-topbar")
 
@@ -108,10 +112,21 @@ export function ArtistTopBar() {
     router.push("/artist/notifications")
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (isLoggingOut) return
+    setIsLoggingOut(true)
     closeAllMenus()
-    logout()
-    window.location.href = "/login"
+    clearBodyScrollLocks()
+    clearPlayback()
+    // Let the sheet finish closing before auth teardown / navigation.
+    await new Promise((resolve) => window.setTimeout(resolve, 50))
+    try {
+      await logout()
+    } finally {
+      clearBodyScrollLocks()
+      router.replace("/login")
+      window.setTimeout(() => clearBodyScrollLocks(), 100)
+    }
   }
 
   return (
@@ -232,11 +247,12 @@ export function ArtistTopBar() {
                     <button
                       type="button"
                       role="menuitem"
-                      onClick={handleLogout}
-                      className="flex min-h-[44px] w-full cursor-pointer items-center px-3 py-2 text-sm text-red-400 hover:bg-slate-700 sm:min-h-0"
+                      disabled={isLoggingOut}
+                      onClick={() => void handleLogout()}
+                      className="flex min-h-[44px] w-full cursor-pointer items-center px-3 py-2 text-sm text-red-400 hover:bg-slate-700 sm:min-h-0 disabled:opacity-50"
                     >
                       <LogOut className="mr-2 h-4 w-4 shrink-0" />
-                      <span>Cerrar sesión</span>
+                      <span>{isLoggingOut ? "Cerrando…" : "Cerrar sesión"}</span>
                     </button>
                   </div>
                 </div>
@@ -303,11 +319,12 @@ export function ArtistTopBar() {
           <div className="border-t border-slate-700 px-3 py-3 pb-[max(1rem,env(safe-area-inset-bottom,0px))]">
             <button
               type="button"
-              className="flex min-h-[48px] w-full touch-manipulation items-center gap-3 rounded-lg px-3 py-3 text-base text-red-400 active:bg-white/10"
-              onClick={handleLogout}
+              className="flex min-h-[48px] w-full touch-manipulation items-center gap-3 rounded-lg px-3 py-3 text-base text-red-400 active:bg-white/10 disabled:opacity-50"
+              disabled={isLoggingOut}
+              onClick={() => void handleLogout()}
             >
               <LogOut className="h-5 w-5 shrink-0" />
-              <span>Cerrar sesión</span>
+              <span>{isLoggingOut ? "Cerrando…" : "Cerrar sesión"}</span>
             </button>
           </div>
         </SheetContent>

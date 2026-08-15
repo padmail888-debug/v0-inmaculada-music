@@ -6,18 +6,15 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { getSupabase } from "@/lib/supabase/client"
 import { nativeCrossOriginFetchInit, resolveApiUrl } from "@/lib/api-base"
 import type { User, UserRole } from "@/lib/auth-types"
-import {
-  mapSupabaseRoleToUserRole,
-  pickBestUserRole,
-  roleFromAccessToken,
-} from "@/lib/user-role"
+import { mapSupabaseRoleToUserRole, pickBestUserRole, roleFromAccessToken } from "@/lib/user-role"
+import { clearBodyScrollLocks } from "@/lib/clear-body-scroll-locks"
 
 export type { User, UserRole } from "@/lib/auth-types"
 
 interface AuthContextType {
   user: User | null
   login: (user: User) => void
-  logout: () => void
+  logout: () => Promise<void>
   isLoading: boolean
   refreshUserFromSupabase: () => Promise<User | null>
   /** Set current user's role only (e.g. after subscription success so UI updates immediately). */
@@ -295,16 +292,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
   }, [])
 
-  const logout = () => {
+  const logout = useCallback(async () => {
+    clearBodyScrollLocks()
+
     try {
       const supabase = getSupabase()
-      void supabase.auth.signOut()
+      await supabase.auth.signOut()
     } catch (error) {
       console.error("Error signing out from Supabase:", error)
     }
 
     setUser(null)
-    localStorage.removeItem("user")
+    try {
+      localStorage.removeItem("user")
+    } catch {
+      /* ignore */
+    }
     if (typeof sessionStorage !== "undefined") {
       try {
         sessionStorage.removeItem("pending_notification")
@@ -312,7 +315,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         /* ignore */
       }
     }
-  }
+
+    // Sheet/dialog unmount can re-apply locks for a frame after navigation starts.
+    clearBodyScrollLocks()
+    requestAnimationFrame(() => clearBodyScrollLocks())
+    window.setTimeout(() => clearBodyScrollLocks(), 50)
+    window.setTimeout(() => clearBodyScrollLocks(), 250)
+  }, [])
 
   return (
     <AuthContext.Provider value={{ user, login, logout, isLoading, refreshUserFromSupabase, setUserRole }}>

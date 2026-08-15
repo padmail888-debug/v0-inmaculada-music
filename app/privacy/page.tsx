@@ -1,8 +1,5 @@
-import Link from "next/link"
 import { PublicSiteHeader } from "@/components/layout/public-site-header"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Music } from "lucide-react"
 
 export default function PrivacyPage() {
   return (

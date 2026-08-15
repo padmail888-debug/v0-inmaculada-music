@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
+import { useMusicPlayer } from "@/hooks/use-music-player"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
@@ -21,15 +22,18 @@ import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import { useNotificationInboxPreview } from "@/hooks/use-notification-inbox-preview"
 import { getPostLoginPath } from "@/lib/user-role"
+import { clearBodyScrollLocks } from "@/lib/clear-body-scroll-locks"
 
 const navBtnClass =
   "text-white hover:bg-white/10 min-h-[44px] min-w-[44px] p-0 sm:min-h-9 sm:min-w-9 sm:px-3"
 
 export function TopBar() {
   const { user, logout } = useAuth()
+  const { clearPlayback } = useMusicPlayer()
   const router = useRouter()
   const menuRef = useRef<HTMLDivElement>(null)
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const { unreadCount, liveBanner } = useNotificationInboxPreview(user?.id, "topbar")
 
@@ -53,6 +57,21 @@ export function TopBar() {
       document.removeEventListener("keydown", onKeyDown)
     }
   }, [isUserMenuOpen])
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return
+    setIsLoggingOut(true)
+    setIsUserMenuOpen(false)
+    clearBodyScrollLocks()
+    clearPlayback()
+    try {
+      await logout()
+    } finally {
+      clearBodyScrollLocks()
+      router.replace("/login")
+      window.setTimeout(() => clearBodyScrollLocks(), 100)
+    }
+  }
 
   const goBack = () => {
     if (typeof window !== "undefined" && window.history.length > 1) {
@@ -235,15 +254,12 @@ export function TopBar() {
                     <button
                       type="button"
                       role="menuitem"
-                      onClick={() => {
-                        setIsUserMenuOpen(false)
-                        logout()
-                        window.location.href = "/login"
-                      }}
-                      className="flex min-h-[44px] w-full cursor-pointer items-center px-3 py-2 text-sm text-red-400 hover:bg-slate-700 sm:min-h-0"
+                      disabled={isLoggingOut}
+                      onClick={() => void handleLogout()}
+                      className="flex min-h-[44px] w-full cursor-pointer items-center px-3 py-2 text-sm text-red-400 hover:bg-slate-700 sm:min-h-0 disabled:opacity-50"
                     >
                       <LogOut className="mr-2 h-4 w-4 shrink-0" />
-                      <span>Cerrar Sesión</span>
+                      <span>{isLoggingOut ? "Cerrando…" : "Cerrar Sesión"}</span>
                     </button>
                   </div>
                 </div>

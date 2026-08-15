@@ -17,7 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Camera, Lock, User, Music, Crown, Heart, Play } from "lucide-react"
+import { Camera, Lock, User, Music, Crown, Heart, Play, Trash2 } from "lucide-react"
 import { AppShell } from "@/components/layout/app-shell"
 
 type ProfileLikedTrack = {
@@ -576,6 +576,19 @@ export default function ProfilePage() {
                     </Link>
                   </div>
                 </form>
+                <div className="pt-6 mt-6 border-t border-slate-600 space-y-3">
+                  <p className="text-sm text-slate-400">¿Quieres eliminar tu cuenta?</p>
+                  <Button
+                    asChild
+                    type="button"
+                    className="bg-red-700 hover:bg-red-800 text-white min-h-[44px]"
+                  >
+                    <Link href="/delete-account">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Eliminar cuenta
+                    </Link>
+                  </Button>
+                </div>
               </TabsContent>
 
               {user.role === "artist" && (

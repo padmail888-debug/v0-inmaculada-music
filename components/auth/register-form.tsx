@@ -52,10 +52,10 @@ export function RegisterForm() {
 
     try {
       const supabase = getSupabase()
+      const wantsPremium = formData.role === "premium"
 
-      // Map UI role to a human-readable label stored in user metadata
+      // Premium is granted only after Stripe payment — register as free (or artist) first.
       let metaRole = "Free User"
-      if (formData.role === "premium") metaRole = "Paid User"
       if (formData.role === "artist") metaRole = "Artist"
 
       const { data, error } = await supabase.auth.signUp({
@@ -65,6 +65,7 @@ export function RegisterForm() {
           data: {
             name: formData.name,
             role: metaRole,
+            intended_plan: wantsPremium ? "premium" : formData.role,
           },
         },
       })
@@ -94,14 +95,18 @@ export function RegisterForm() {
       if (data.session) {
         login(userData)
 
-        if (userRole === "premium") {
-          router.push("/payment")
+        if (wantsPremium) {
+          router.push("/subscription")
         } else {
           router.push(getPostLoginPath(userRole))
         }
       } else {
-        alert("Cuenta creada. Revisa tu email para confirmar la cuenta antes de iniciar sesión.")
-        router.push("/login")
+        alert(
+          wantsPremium
+            ? "Cuenta creada. Confirma tu email, inicia sesión y completa el pago Premium."
+            : "Cuenta creada. Revisa tu email para confirmar la cuenta antes de iniciar sesión.",
+        )
+        router.push(wantsPremium ? "/login?redirect=/subscription" : "/login")
       }
     } catch (error) {
       console.error("Registration error:", error)
@@ -201,7 +206,7 @@ export function RegisterForm() {
         >
           <option value="free">Usuario Gratuito</option>
           <option value="premium">
-            Usuario Premium (${settings.premiumPrice.toFixed(2)}/mes)
+            Usuario Premium (${settings.premiumPrice.toFixed(2)}/mes — pago tras registrarte)
           </option>
           <option value="artist">Artista</option>
         </select>
