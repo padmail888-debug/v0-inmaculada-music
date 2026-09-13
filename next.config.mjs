@@ -71,4 +71,4 @@ if (!isVercelDeploy && process.env.NODE_ENV === "production") {
   nextConfig.output = "export"
 }
 
-export default nextConfig
+export default nextConfig;
