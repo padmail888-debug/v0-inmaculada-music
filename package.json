@@ -2,6 +2,7 @@
   "name": "inmaculada-music-app",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "npm@10.8.2",
   "scripts": {
     "generate:firebase-sw": "node scripts/generate-firebase-messaging-sw.mjs",
     "native-api-config": "node scripts/write-native-api-config.mjs",
