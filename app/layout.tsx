@@ -46,6 +46,10 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
+  icons: {
+    icon: "/logo.png",
+    apple: "/apple-touch-icon.jpg",
+  },
   metadataBase: new URL(siteUrl),
   alternates: {
     canonical: "/",
@@ -89,10 +93,18 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  verification: {
-    google: "your-google-verification-code", // Add real Google verification code
-    yandex: "your-yandex-verification-code", // Add real Yandex verification code
-  },
+  ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || process.env.NEXT_PUBLIC_YANDEX_VERIFICATION
+    ? {
+        verification: {
+          ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+            ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
+            : {}),
+          ...(process.env.NEXT_PUBLIC_YANDEX_VERIFICATION
+            ? { yandex: process.env.NEXT_PUBLIC_YANDEX_VERIFICATION }
+            : {}),
+        },
+      }
+    : {}),
 }
 
 export default function RootLayout({

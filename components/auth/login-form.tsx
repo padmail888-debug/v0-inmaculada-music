@@ -26,6 +26,9 @@ import {
 } from "@/lib/user-role"
 import { Shield } from "lucide-react"
 
+/** Set to true to show Google / Apple / Facebook login again. */
+const SHOW_SOCIAL_LOGIN = false
+
 function isNativeApp() {
   try {
     return Capacitor.isNativePlatform()
@@ -102,26 +105,8 @@ export function LoginForm() {
     }
   }
 
-  const handleSocialLogin = async (provider: "google" | "apple" | "facebook") => {
-    setIsLoading(true)
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      const userData = {
-        id: Date.now().toString(),
-        email: `user@${provider}.com`,
-        name: `Usuario de ${provider.charAt(0).toUpperCase() + provider.slice(1)}`,
-        role: "free" as const,
-        subscription: null,
-      }
-
-      login(userData)
-      router.push("/dashboard")
-    } catch (error) {
-      console.error(`${provider} login error:`, error)
-    } finally {
-      setIsLoading(false)
-    }
+  const handleSocialLogin = async (_provider: "google" | "apple" | "facebook") => {
+    alert("El inicio de sesión social estará disponible pronto. Usa email y contraseña.")
   }
 
   const finishLogin = async (opts: {
@@ -242,6 +227,8 @@ export function LoginForm() {
 
   return (
     <div className="space-y-6">
+      {SHOW_SOCIAL_LOGIN && (
+        <>
       <div className="space-y-3">
         <Button
           type="button"
@@ -308,6 +295,8 @@ export function LoginForm() {
           <span className="bg-slate-900 px-2 text-gray-400">O continúa con email</span>
         </div>
       </div>
+        </>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">

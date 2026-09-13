@@ -11,6 +11,9 @@ import { Check, Music, Crown, CheckCircle } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { AppShell } from "@/components/layout/app-shell"
 import { STRIPE_CONFIG } from "@/lib/stripe-config"
+import { nativeCrossOriginFetchInit, resolveApiUrl } from "@/lib/api-base"
+import { getSupabase } from "@/lib/supabase/client"
+import { hasPaidAccess } from "@/lib/user-role"
 
 const StripeCheckout = dynamic(() => import("@/components/payment/stripe-checkout"), { ssr: false })
 
@@ -19,6 +22,9 @@ function SubscriptionContent() {
   const searchParams = useSearchParams()
   const [showCheckout, setShowCheckout] = useState<string | null>(null)
   const [showStripeSuccess, setShowStripeSuccess] = useState(false)
+  const [portalError, setPortalError] = useState<string | null>(null)
+  const [portalLoading, setPortalLoading] = useState(false)
+  const canceled = searchParams.get("canceled") === "true"
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -37,7 +43,7 @@ function SubscriptionContent() {
       price: "0",
       period: "siempre",
       description: "Perfecto para empezar",
-      features: ["Previews de 30 segundos", "Compra canciones individuales", "Playlists básicas", "Calidad estándar"],
+      features: ["Previews de 30 segundos", "Playlists básicas", "Calidad estándar"],
       limitations: ["Anuncios entre canciones", "Sin modo offline", "Saltos limitados"],
       buttonText: user?.subscription === "free" ? "Plan Actual" : "Cambiar a Gratuito",
       buttonVariant: "outline" as const,
@@ -99,8 +105,43 @@ function SubscriptionContent() {
 
   const handlePaymentSuccess = () => {
     setShowCheckout(null)
-    // Redirect to dashboard or show success message
     window.location.href = "/dashboard?success=true"
+  }
+
+  const handleManageSubscription = async () => {
+    setPortalError(null)
+    setPortalLoading(true)
+    try {
+      const { data } = await getSupabase().auth.getSession()
+      const token = data.session?.access_token
+      if (!token) {
+        window.location.href = "/login?redirect=/subscription"
+        return
+      }
+      const url = resolveApiUrl("/api/create-customer-portal")
+      if (!url) {
+        setPortalError("No se pudo contactar el servidor.")
+        return
+      }
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        ...nativeCrossOriginFetchInit,
+      })
+      const payload = (await response.json().catch(() => null)) as { url?: string; error?: string } | null
+      if (!response.ok || !payload?.url) {
+        setPortalError(payload?.error || "No se pudo abrir el portal de Stripe.")
+        return
+      }
+      window.location.href = payload.url
+    } catch {
+      setPortalError("No se pudo abrir el portal de Stripe.")
+    } finally {
+      setPortalLoading(false)
+    }
   }
 
   if (showCheckout) {
@@ -135,6 +176,14 @@ function SubscriptionContent() {
   return (
     <AppShell>
       <div className="max-w-6xl mx-auto min-w-0">
+        {canceled && (
+          <Card className="mb-8 border-amber-500/50 bg-amber-900/20">
+            <CardContent className="pt-6 text-center">
+              <p className="text-slate-200">El pago se canceló. Puedes elegir un plan cuando quieras.</p>
+            </CardContent>
+          </Card>
+        )}
+
         {showStripeSuccess && (
           <Card className="mb-8 border-green-500/50 bg-green-900/20">
             <CardContent className="pt-6">
@@ -167,6 +216,19 @@ function SubscriptionContent() {
             Desde previews gratuitas hasta acceso completo sin límites. Encuentra el plan perfecto para tu experiencia
             musical.
           </p>
+          {hasPaidAccess(user?.role) && (
+            <div className="mt-6">
+              <Button
+                variant="outline"
+                className="border-slate-500 text-white hover:bg-slate-700"
+                disabled={portalLoading}
+                onClick={() => void handleManageSubscription()}
+              >
+                {portalLoading ? "Abriendo…" : "Gestionar o cancelar suscripción"}
+              </Button>
+              {portalError && <p className="text-red-400 text-sm mt-2">{portalError}</p>}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto">
@@ -234,10 +296,10 @@ function SubscriptionContent() {
                   <Button
                     className="w-full"
                     variant={plan.buttonVariant}
-                    disabled={plan.current}
-                    onClick={() => handleSubscribe(plan)} // Added click handler
+                    disabled={plan.current || Boolean(plan.priceId === "")}
+                    onClick={() => handleSubscribe(plan)}
                   >
-                    {plan.buttonText}
+                    {plan.priceId === "" ? "Pago no configurado" : plan.buttonText}
                   </Button>
                 </CardFooter>
               </Card>

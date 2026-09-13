@@ -23,6 +23,7 @@ import { useEffect, useRef, useState } from "react"
 import { useNotificationInboxPreview } from "@/hooks/use-notification-inbox-preview"
 import { getPostLoginPath } from "@/lib/user-role"
 import { clearBodyScrollLocks } from "@/lib/clear-body-scroll-locks"
+import { BrandLogo } from "@/components/brand-logo"
 
 const navBtnClass =
   "text-white hover:bg-white/10 min-h-[44px] min-w-[44px] p-0 sm:min-h-9 sm:min-w-9 sm:px-3"
@@ -132,10 +133,8 @@ export function TopBar() {
       <header className="top-bar-safe flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-black/20 px-3 backdrop-blur-xl sm:px-6">
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-6">
           <Link href="/dashboard" className="flex shrink-0 items-center gap-2 min-h-[44px]">
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-purple-500 to-blue-500">
-              <Music className="h-5 w-5 text-white" />
-            </div>
-            <span className="hidden truncate font-bold text-white text-base sm:inline sm:text-lg">MusicStream</span>
+            <BrandLogo className="h-8 w-8" />
+            <span className="hidden truncate font-bold text-white text-base sm:inline sm:text-lg">Inmaculada Music</span>
           </Link>
 
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">

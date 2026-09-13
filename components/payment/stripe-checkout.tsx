@@ -10,7 +10,7 @@ import { CreditCard, Lock } from "lucide-react"
 import { nativeCrossOriginFetchInit, resolveApiUrl } from "@/lib/api-base"
 import { STRIPE_CONFIG } from "@/lib/stripe-config"
 
-const stripePromise = loadStripe(STRIPE_CONFIG.publishableKey)
+const stripePromise = STRIPE_CONFIG.publishableKey ? loadStripe(STRIPE_CONFIG.publishableKey) : Promise.resolve(null)
 
 interface StripeCheckoutProps {
   planName: string
@@ -28,6 +28,10 @@ function CheckoutForm({ planName, price, priceId, userId, customerEmail }: Strip
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!STRIPE_CONFIG.publishableKey || !priceId) {
+      setError("Stripe no está configurado. Faltan las claves o los price IDs en el servidor.")
+      return
+    }
     if (!stripe) return
 
     setLoading(true)

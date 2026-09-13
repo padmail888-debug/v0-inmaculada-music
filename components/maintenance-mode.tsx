@@ -23,7 +23,7 @@ export default function MaintenanceMode() {
           </p>
           <p className="text-sm text-gray-500">Gracias por tu paciencia.</p>
           <div className="pt-4">
-            <div className="text-xs text-gray-600">MusicStream Team</div>
+            <div className="text-xs text-gray-600">Inmaculada Music</div>
           </div>
         </CardContent>
       </Card>

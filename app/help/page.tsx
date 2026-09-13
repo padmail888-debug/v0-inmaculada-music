@@ -12,7 +12,6 @@ import {
   ChevronDown,
   ChevronRight,
   Mail,
-  Phone,
   MessageCircle,
   Clock,
   HelpCircle,
@@ -22,6 +21,8 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { AppShell } from "@/components/layout/app-shell"
+import { BRAND_NAME, SUPPORT_EMAIL } from "@/lib/brand"
+import { submitSupportMessage } from "@/lib/support-client"
 
 export default function HelpPage() {
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null)
@@ -32,6 +33,8 @@ export default function HelpPage() {
     subject: "",
     message: "",
   })
+  const [contactSending, setContactSending] = useState(false)
+  const [contactSent, setContactSent] = useState(false)
 
   useEffect(() => {
     const hash = window.location.hash.replace("#", "")
@@ -101,11 +104,22 @@ export default function HelpPage() {
     },
   ]
 
-  const handleContactSubmit = (e: React.FormEvent) => {
+  const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Aquí iría la lógica para enviar el formulario
-    alert("Mensaje enviado. Te responderemos en 24-48 horas.")
-    setContactForm({ name: "", email: "", subject: "", message: "" })
+    setContactSending(true)
+    try {
+      await submitSupportMessage({
+        name: contactForm.name,
+        email: contactForm.email,
+        subject: contactForm.subject,
+        message: contactForm.message,
+        category: "contacto",
+      })
+      setContactSent(true)
+      setContactForm({ name: "", email: "", subject: "", message: "" })
+    } finally {
+      setContactSending(false)
+    }
   }
 
   return (
@@ -184,6 +198,12 @@ export default function HelpPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+                  {contactSent ? (
+                    <p className="text-slate-200 text-sm sm:text-base">
+                      Se abrió tu cliente de correo para escribir a {SUPPORT_EMAIL}. Si no se abrió, envía el mensaje
+                      directamente a esa dirección.
+                    </p>
+                  ) : (
                   <form onSubmit={handleContactSubmit} className="space-y-3 sm:space-y-4">
                     <div>
                       <Input
@@ -224,11 +244,13 @@ export default function HelpPage() {
                     </div>
                     <Button
                       type="submit"
+                      disabled={contactSending}
                       className="w-full bg-purple-600 hover:bg-purple-700 min-h-[44px] sm:min-h-[40px] text-base"
                     >
-                      Enviar Mensaje
+                      {contactSending ? "Preparando…" : "Enviar Mensaje"}
                     </Button>
                   </form>
+                  )}
                 </CardContent>
               </Card>
 
@@ -243,14 +265,12 @@ export default function HelpPage() {
                       <Mail className="h-5 w-5 text-purple-400 shrink-0" />
                       <div className="min-w-0">
                         <p className="text-white font-medium text-sm sm:text-base">Email</p>
-                        <p className="text-slate-300 text-sm sm:text-base truncate">soporte@musicstream.com</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 min-h-[44px] sm:min-h-0">
-                      <Phone className="h-5 w-5 text-purple-400 shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-white font-medium text-sm sm:text-base">Teléfono</p>
-                        <p className="text-slate-300 text-sm sm:text-base">+34 900 123 456</p>
+                        <a
+                          href={`mailto:${SUPPORT_EMAIL}`}
+                          className="text-slate-300 text-sm sm:text-base truncate hover:text-white"
+                        >
+                          {SUPPORT_EMAIL}
+                        </a>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 min-h-[44px] sm:min-h-0">
@@ -290,35 +310,41 @@ export default function HelpPage() {
 
           <TabsContent value="guides" className="mt-4 sm:mt-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              <Card className="bg-slate-800 border-slate-700 hover:border-purple-500 active:border-purple-500 transition-colors cursor-pointer touch-manipulation min-h-[44px]">
+              <Link href="/register" className="block">
+              <Card className="bg-slate-800 border-slate-700 hover:border-purple-500 active:border-purple-500 transition-colors touch-manipulation min-h-[44px]">
                 <CardHeader className="p-4 sm:p-6">
                   <Settings className="h-7 w-7 sm:h-8 sm:w-8 text-purple-400 mb-2 shrink-0" />
                   <CardTitle className="text-white text-base sm:text-lg">Primeros Pasos</CardTitle>
                   <CardDescription className="text-slate-300 text-sm">
-                    Aprende a configurar tu cuenta y empezar a usar MusicStream.
+                    Crea tu cuenta y empieza a usar {BRAND_NAME}.
                   </CardDescription>
                 </CardHeader>
               </Card>
+              </Link>
 
-              <Card className="bg-slate-800 border-slate-700 hover:border-purple-500 active:border-purple-500 transition-colors cursor-pointer touch-manipulation min-h-[44px]">
+              <Link href="/artist" className="block">
+              <Card className="bg-slate-800 border-slate-700 hover:border-purple-500 active:border-purple-500 transition-colors touch-manipulation min-h-[44px]">
                 <CardHeader className="p-4 sm:p-6">
                   <Users className="h-7 w-7 sm:h-8 sm:w-8 text-purple-400 mb-2 shrink-0" />
                   <CardTitle className="text-white text-base sm:text-lg">Para Artistas</CardTitle>
                   <CardDescription className="text-slate-300 text-sm">
-                    Guía completa para artistas: subir música, gestionar perfil y más.
+                    Guía para artistas: subir música, gestionar perfil y más.
                   </CardDescription>
                 </CardHeader>
               </Card>
+              </Link>
 
-              <Card className="bg-slate-800 border-slate-700 hover:border-purple-500 active:border-purple-500 transition-colors cursor-pointer touch-manipulation min-h-[44px]">
+              <Link href="/report" className="block">
+              <Card className="bg-slate-800 border-slate-700 hover:border-purple-500 active:border-purple-500 transition-colors touch-manipulation min-h-[44px]">
                 <CardHeader className="p-4 sm:p-6">
                   <HelpCircle className="h-7 w-7 sm:h-8 sm:w-8 text-purple-400 mb-2 shrink-0" />
                   <CardTitle className="text-white text-base sm:text-lg">Solución de Problemas</CardTitle>
                   <CardDescription className="text-slate-300 text-sm">
-                    Resuelve los problemas más comunes de reproducción y descarga.
+                    Resuelve los problemas más comunes o envía un reporte.
                   </CardDescription>
                 </CardHeader>
               </Card>
+              </Link>
             </div>
           </TabsContent>
         </Tabs>

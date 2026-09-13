@@ -1,6 +1,6 @@
 "use client"
 
-import { Bell, LogOut, Music, Upload, User, Menu } from "lucide-react"
+import { Bell, LogOut, Upload, User, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
 import { useMusicPlayer } from "@/hooks/use-music-player"
@@ -13,6 +13,7 @@ import { useNotificationInboxPreview } from "@/hooks/use-notification-inbox-prev
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import type { UserRole } from "@/lib/auth-types"
 import { clearBodyScrollLocks } from "@/lib/clear-body-scroll-locks"
+import { BrandLogo } from "@/components/brand-logo"
 
 function formatRoleLabel(role: UserRole | undefined): string {
   switch (role) {
@@ -161,9 +162,7 @@ export function ArtistTopBar() {
             className="flex min-h-[44px] min-w-0 shrink items-center gap-1.5 touch-manipulation sm:gap-2"
             onClick={closeAllMenus}
           >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-purple-500 to-orange-500">
-              <Music className="h-5 w-5 text-white" />
-            </div>
+            <BrandLogo className="h-8 w-8" />
             <span className="max-w-[7rem] truncate text-sm font-bold text-white sm:max-w-none sm:text-lg">
               Panel Artista
             </span>

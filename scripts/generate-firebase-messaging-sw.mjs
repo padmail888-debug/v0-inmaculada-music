@@ -1,33 +1,12 @@
 /**
- * Generates public/firebase-messaging-sw.js from .env.local for web background push.
+ * Generates public/firebase-messaging-sw.js from .env / .env.local for web background push.
  * Run before `next build` (see package.json).
  */
 import fs from "fs"
 import path from "path"
+import { loadDotenv } from "./load-dotenv.mjs"
 
-function loadEnvLocal() {
-  const envPath = path.join(process.cwd(), ".env.local")
-  if (!fs.existsSync(envPath)) return {}
-  const env = {}
-  for (const line of fs.readFileSync(envPath, "utf8").split("\n")) {
-    const trimmed = line.trim()
-    if (!trimmed || trimmed.startsWith("#")) continue
-    const eq = trimmed.indexOf("=")
-    if (eq === -1) continue
-    const key = trimmed.slice(0, eq).trim()
-    let value = trimmed.slice(eq + 1).trim()
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1)
-    }
-    env[key] = value
-  }
-  return env
-}
-
-const env = { ...loadEnvLocal(), ...process.env }
+const env = { ...loadDotenv(process.cwd()), ...process.env }
 const firebaseConfig = {
   apiKey: env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
   authDomain: env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "",

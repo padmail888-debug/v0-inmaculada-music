@@ -1,8 +1,8 @@
 import { Suspense } from "react"
 import { LoginForm } from "@/components/auth/login-form"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Music } from "lucide-react"
 import Link from "next/link"
+import { BrandLogo } from "@/components/brand-logo"
 
 export default function LoginPage() {
   return (
@@ -10,8 +10,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 text-white hover:text-purple-300 transition-colors">
-            <Music className="h-8 w-8" />
-            <span className="text-2xl font-bold">MusicStream</span>
+            <BrandLogo className="h-8 w-8" />
+            <span className="text-2xl font-bold">Inmaculada Music</span>
           </Link>
         </div>
 

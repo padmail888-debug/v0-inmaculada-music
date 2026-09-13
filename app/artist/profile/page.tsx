@@ -474,9 +474,9 @@ export default function ArtistProfilePage() {
       // iCalendar format
       const icalContent = `BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//MusicStream//Concert//EN
+PRODID:-//Inmaculada Music//Concert//EN
 BEGIN:VEVENT
-UID:${concert.id}@musicstream.com
+UID:${concert.id}@inmaculadamusic.com
 DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").split(".")[0]}Z
 DTSTART:${startDate.toISOString().replace(/[-:]/g, "").split(".")[0]}Z
 DTEND:${endDate.toISOString().replace(/[-:]/g, "").split(".")[0]}Z

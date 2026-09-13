@@ -131,7 +131,7 @@ function SidebarNav({ onNavigate }: SidebarNavProps) {
     return (
       <>
         <div className="mb-8">
-          <h2 className="text-xl font-bold text-white">MusicStream</h2>
+          <h2 className="text-xl font-bold text-white">Inmaculada Music</h2>
           <p className="mt-1 text-xs text-amber-200/80">Super Admin</p>
         </div>
 
@@ -150,7 +150,7 @@ function SidebarNav({ onNavigate }: SidebarNavProps) {
   return (
     <>
       <div className="mb-8">
-        <h2 className="text-xl font-bold text-white">MusicStream</h2>
+        <h2 className="text-xl font-bold text-white">Inmaculada Music</h2>
       </div>
 
       <nav className="space-y-2">

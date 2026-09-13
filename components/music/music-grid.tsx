@@ -1,20 +1,15 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
 
-import { Play, Lock, Heart, MoreHorizontal, Plus, Cast, Bluetooth, Smartphone } from "lucide-react"
+import { Play, Lock, Heart, MoreHorizontal, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useMusicPlayer } from "@/hooks/use-music-player"
 import { useLikes } from "@/hooks/use-likes"
@@ -45,7 +40,6 @@ export function MusicGrid({ tracks, userRole }: MusicGridProps) {
   const { playTrack, addToQueue, currentTrack, isPlaying } = useMusicPlayer()
   const { toggleLike, isLiked } = useLikes()
   const { user } = useAuth()
-  const [searchingDevices, setSearchingDevices] = useState(false)
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -120,14 +114,6 @@ export function MusicGrid({ tracks, userRole }: MusicGridProps) {
     }
   }
 
-  const handleSearchDevices = () => {
-    setSearchingDevices(true)
-    // Simulate device search
-    setTimeout(() => {
-      setSearchingDevices(false)
-    }, 2000)
-  }
-
   const handleArtistClick = (artistId: string | undefined, e: React.MouseEvent) => {
     e.stopPropagation()
     if (artistId) {
@@ -199,30 +185,6 @@ export function MusicGrid({ tracks, userRole }: MusicGridProps) {
                               {isLiked(track.id) ? "Quitar de favoritas" : "Añadir a Canciones que te gustan"}
                             </DropdownMenuItem>
                             <AddToPlaylistSubmenu songId={track.id} songTitle={track.title} />
-                            <DropdownMenuSeparator className="bg-slate-700" />
-                            <DropdownMenuSub>
-                              <DropdownMenuSubTrigger className="text-white hover:bg-slate-700">
-                                <Cast className="mr-2 h-4 w-4" />
-                                Reproducir en otros dispositivos
-                              </DropdownMenuSubTrigger>
-                              <DropdownMenuSubContent className="bg-slate-800 border-slate-700">
-                                <DropdownMenuItem
-                                  onClick={handleSearchDevices}
-                                  className="text-white hover:bg-slate-700"
-                                >
-                                  <Bluetooth className="mr-2 h-4 w-4" />
-                                  {searchingDevices ? "Buscando..." : "Buscar dispositivos Bluetooth"}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="text-white hover:bg-slate-700">
-                                  <Cast className="mr-2 h-4 w-4" />
-                                  Chromecast
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="text-white hover:bg-slate-700">
-                                  <Smartphone className="mr-2 h-4 w-4" />
-                                  Otros dispositivos
-                                </DropdownMenuItem>
-                              </DropdownMenuSubContent>
-                            </DropdownMenuSub>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>

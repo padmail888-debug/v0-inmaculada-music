@@ -42,7 +42,6 @@ export function HomePricingCards() {
           <div className="text-4xl font-bold text-white mb-4">$0</div>
           <ul className="text-slate-100 space-y-2 mb-6 text-left sm:text-center">
             <li>• Previews de 30 segundos</li>
-            <li>• Compra canciones individuales</li>
             <li>• Playlists básicas</li>
             <li>• Con anuncios</li>
           </ul>

@@ -3,7 +3,8 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Music, ArrowLeft } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
+import { BrandLogo } from "@/components/brand-logo"
 import type { ReactNode } from "react"
 
 type PublicSiteHeaderProps = {
@@ -22,7 +23,7 @@ export function PublicSiteHeader({
   trailing,
   showBack = false,
   backHref = "/",
-  title = "MusicStream",
+  title = "Inmaculada Music",
 }: PublicSiteHeaderProps) {
   const router = useRouter()
 
@@ -74,9 +75,7 @@ export function PublicSiteHeader({
             </Button>
           ) : null}
           <Link href="/" className="flex min-w-0 items-center gap-2 min-h-[44px]">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-purple-500 to-blue-500">
-              <Music className="h-5 w-5 text-white" />
-            </div>
+            <BrandLogo className="h-8 w-8" />
             <span className="truncate font-bold text-white text-base sm:text-lg">{title}</span>
           </Link>
         </div>

@@ -1,4 +1,4 @@
-const CACHE_NAME = "musicstream-v1"
+const CACHE_NAME = "inmaculada-music-v1"
 const urlsToCache = ["/", "/dashboard", "/offline", "/login", "/register"]
 
 self.addEventListener("install", (event) => {

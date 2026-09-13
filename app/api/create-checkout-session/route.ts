@@ -23,8 +23,8 @@ export async function POST(request: NextRequest) {
       customerEmail?: string
     }
 
-    if (!priceId) {
-      return NextResponse.json({ error: "priceId is required" }, { status: 400 })
+    if (!priceId || !priceId.startsWith("price_")) {
+      return NextResponse.json({ error: "A valid Stripe priceId is required" }, { status: 400 })
     }
 
     if (!userId) {

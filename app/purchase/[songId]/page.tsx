@@ -1,12 +1,10 @@
-import PurchasePageClient from "./PurchasePageClient"
+import { redirect } from "next/navigation"
 
-export default function PurchasePage({ params }: { params: { songId: string } }) {
-  return <PurchasePageClient params={params} />
+/** Per-song checkout was a demo stub. Paid access is subscription-only via Stripe. */
+export default function PurchasePage() {
+  redirect("/subscription")
 }
 
-// Tell Next.js which songIds to pre-generate for static export
 export function generateStaticParams() {
-  const ids = ["1", "2", "3"]
-  return ids.map((songId) => ({ songId }))
+  return [{ songId: "_" }]
 }
-

@@ -25,10 +25,23 @@ function isCapacitorNativeRuntime(): boolean {
  */
 function isCapacitorLocalhostShell(): boolean {
   if (typeof window === "undefined") return false
-  const raw = (process.env.NEXT_PUBLIC_APP_URL || "").trim()
-  if (!/^https?:\/\//i.test(raw)) return false
   const host = window.location.hostname.toLowerCase()
-  return host === "localhost" || host === "127.0.0.1"
+  if (host !== "localhost" && host !== "127.0.0.1") return false
+  // Regular `next dev` in a desktop browser must use local /api.
+  // Only treat localhost as Capacitor when the native bridge is present.
+  const w = window as Window &
+    Partial<{
+      Capacitor?: unknown
+      androidBridge: unknown
+      webkit?: { messageHandlers?: Record<string, unknown> }
+    }>
+  const looksNative =
+    w.androidBridge != null ||
+    w.webkit?.messageHandlers?.bridge != null ||
+    w.Capacitor != null
+  if (!looksNative) return false
+  const raw = (process.env.NEXT_PUBLIC_APP_URL || "").trim()
+  return /^https?:\/\//i.test(raw)
 }
 
 /** Use remote API base instead of relative /api paths. */

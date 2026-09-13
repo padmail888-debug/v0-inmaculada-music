@@ -78,6 +78,23 @@ export async function POST(req: NextRequest) {
           const gotRole = (updatedUser?.user?.app_metadata as Record<string, unknown>)?.role
           console.log("[Stripe webhook] Updated user role:", userId, "→", appRole, "| read-back:", gotRole ?? "(undefined)")
 
+          const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id
+          const subscriptionId =
+            typeof session.subscription === "string" ? session.subscription : session.subscription?.id
+          if (customerId) {
+            const { error: subError } = await supabase.from("subscriptions").upsert(
+              {
+                user_id: userId,
+                stripe_customer_id: customerId,
+                stripe_subscription_id: subscriptionId || null,
+              },
+              { onConflict: "user_id" },
+            )
+            if (subError) {
+              console.warn("[Stripe webhook] subscriptions upsert failed:", subError.message)
+            }
+          }
+
           await createAndDispatchNotification({
             type: "payment_success",
             title: "Pago completado correctamente",
